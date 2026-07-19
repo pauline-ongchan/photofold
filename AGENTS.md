@@ -8,9 +8,9 @@
 
 ## Current implementation boundary
 
-Only Phase 0 / Gate 0 is implemented. Keep changes within repository foundation, health/doctor checks, dataset validation, generated contracts, and the health-only frontend unless a later task explicitly authorizes another gate.
+Phase 0 / Gate 0 and the CLI-only Phase 1 / Gate 1 compression experiment are implemented. Keep changes within repository foundation, health/doctor checks, dataset validation, generated contracts, the health-only frontend, and the deterministic Gate 1 benchmark/package/report unless a later task explicitly authorizes another gate.
 
-Do not add alignment, change detection, compression, reconstruction, upload/product flows, job processing, GPT integration, authentication, billing, databases, queues, or cloud infrastructure during Phase 0 maintenance.
+Do not add upload/product flows, API job processing, multiple curated scenarios, GPT integration, authentication, billing, databases, queues, or cloud infrastructure during Phase 0–1 maintenance. Those belong to Phase 2 or later.
 
 ## Invariants
 
@@ -29,7 +29,8 @@ python3 -m venv .venv
 npm ci
 make verify-gate0
 make human-verify-gate0
+make verify-gate1
+make human-verify-gate1
 ```
 
 Use `apply_patch` for text changes and keep generated contract files synchronized with `npm run contracts:generate`.
-
