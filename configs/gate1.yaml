@@ -1,0 +1,33 @@
+schema_version: "0.1"
+status: draft
+codec:
+  base: webp
+  patches: webp
+  masks: png_lossless
+  archive_compression: stored
+  quality_sweep: [70, 80, 90, 95]
+alignment:
+  primary_model: partial_affine
+  fallback_model: homography
+  detector: orb
+  estimator: ransac
+  min_inlier_ratio: null
+  max_median_reprojection_error: null
+change_mask:
+  pixel_threshold_sweep: [8, 12, 16, 24]
+  dilation_radius_sweep: [2, 4, 8]
+  feather_radius_sweep: [0, 2, 4]
+quality:
+  metric: ssim_rgb
+  data_range: 255
+  channel_axis: 2
+  min_per_frame: null
+  min_mean: null
+measurement:
+  source: exact_uploaded_files
+  package: closed_photofold_archive
+  independent_control: matched_quality_webp_rate_distortion
+notes:
+  - Thresholds are intentionally unset until the real Gate 1 sweep and visual review.
+  - This file defines experiments only and contains no claimed result.
+

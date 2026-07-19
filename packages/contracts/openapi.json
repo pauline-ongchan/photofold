@@ -1,0 +1,137 @@
+{
+  "components": {
+    "schemas": {
+      "DatasetSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "frame_count": {
+            "maximum": 20.0,
+            "minimum": 5.0,
+            "title": "Frame Count",
+            "type": "integer"
+          },
+          "height": {
+            "exclusiveMinimum": 0.0,
+            "title": "Height",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "total_bytes": {
+            "exclusiveMinimum": 0.0,
+            "title": "Total Bytes",
+            "type": "integer"
+          },
+          "width": {
+            "exclusiveMinimum": 0.0,
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "frame_count",
+          "width",
+          "height",
+          "total_bytes"
+        ],
+        "title": "DatasetSummary",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "dataset": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DatasetSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Limitations",
+            "type": "array"
+          },
+          "python_version": {
+            "title": "Python Version",
+            "type": "string"
+          },
+          "service": {
+            "const": "photofold-processor",
+            "default": "photofold-processor",
+            "title": "Service",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "degraded"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          },
+          "webp_available": {
+            "title": "Webp Available",
+            "type": "boolean"
+          },
+          "webp_roundtrip": {
+            "title": "Webp Roundtrip",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "status",
+          "version",
+          "python_version",
+          "webp_available",
+          "webp_roundtrip",
+          "limitations"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Phase 0 exposes capability and curated-dataset health only. Compression, reconstruction, uploads, jobs, and model calls are not implemented.",
+    "summary": "Deterministic PhotoFold processor boundary",
+    "title": "PhotoFold Processor",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/v1/health": {
+      "get": {
+        "operationId": "get_health_v1_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Report deterministic processor and demo-dataset readiness",
+        "tags": [
+          "system"
+        ]
+      }
+    }
+  }
+}

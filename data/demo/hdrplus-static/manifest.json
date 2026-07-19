@@ -1,0 +1,98 @@
+{
+  "schema_version": "0.1",
+  "id": "hdrplus-static",
+  "title": "HDR+ static tree burst",
+  "expected_frame_count": 7,
+  "expected_dimensions": {
+    "width": 1600,
+    "height": 1200
+  },
+  "license": {
+    "id": "CC-BY-SA-4.0",
+    "url": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "attribution": "HDR+ Burst Photography Dataset by Hasinoff et al.; JPEG derivatives created for PhotoFold",
+    "changes": "DNG development, 1600x1200 resize, JPEG encoding, and filename normalization"
+  },
+  "consent": {
+    "basis": "public_research_dataset_license",
+    "identifiable_people_visible": false,
+    "notes": "Static outdoor scene with no identifiable person visible."
+  },
+  "source": {
+    "dataset": "HDR+ Burst Photography Dataset",
+    "landing_page": "https://www.hdrplusdata.org/dataset.html",
+    "burst_id": "0006_20160722_115157_431",
+    "capture_type": "real mobile-camera burst",
+    "source_dimensions": {
+      "width": 4048,
+      "height": 3036
+    },
+    "citation": "Hasinoff et al., Burst photography for high dynamic range and low-light imaging, ACM TOG 35(6), 2016"
+  },
+  "derivation": {
+    "rawpy_version": "0.27.0",
+    "pillow_version": "12.3.0",
+    "raw_postprocess": {
+      "use_camera_wb": true,
+      "no_auto_bright": false,
+      "output_bps": 8
+    },
+    "resize": "1600x1200 Lanczos",
+    "jpeg": {
+      "quality": 92,
+      "optimize": true,
+      "progressive": false,
+      "subsampling": "4:2:0"
+    }
+  },
+  "files": [
+    {
+      "path": "frame-000.jpg",
+      "sha256": "4253399b8b7a5447058a4623298774240cf87f36086ec17ea11712f9e7f2df4d",
+      "source_object": "https://storage.googleapis.com/hdrplusdata/20171106_subset/bursts/0006_20160722_115157_431/payload_N000.dng",
+      "source_sha256": "9744f7c309c7aa278d470e497126ae58da439910f46c4c09f3021b76586689d9"
+    },
+    {
+      "path": "frame-001.jpg",
+      "sha256": "63e9f97a0c754f650805f7b0fcc87be1db96e57885090ba25773b4aff6386070",
+      "source_object": "https://storage.googleapis.com/hdrplusdata/20171106_subset/bursts/0006_20160722_115157_431/payload_N001.dng",
+      "source_sha256": "1addfecd85941998c716234bebdeff49b0c4db200aeb80890a42d8cdbe229eb0"
+    },
+    {
+      "path": "frame-002.jpg",
+      "sha256": "9cf7f1d22ff8f8080682286ead78909524962f48d784015a9cf861c7e0c53b27",
+      "source_object": "https://storage.googleapis.com/hdrplusdata/20171106_subset/bursts/0006_20160722_115157_431/payload_N002.dng",
+      "source_sha256": "6d71dce885e463ff93d44161e527ef4b54ec6d753de8e95c6355b9a5e8731a03"
+    },
+    {
+      "path": "frame-003.jpg",
+      "sha256": "210878d01ea341b4faa95f8fd1f3d74b7688a17ddff8b9fb84dd4d9c291724af",
+      "source_object": "https://storage.googleapis.com/hdrplusdata/20171106_subset/bursts/0006_20160722_115157_431/payload_N003.dng",
+      "source_sha256": "75f232264bb06d866c977e277955ec2571e910f6dfe0c9c770c4979ebfff3999"
+    },
+    {
+      "path": "frame-004.jpg",
+      "sha256": "50ee4ed3b40473ae16b125984a03d607838e69c1d2941e0d02835ecdb228f866",
+      "source_object": "https://storage.googleapis.com/hdrplusdata/20171106_subset/bursts/0006_20160722_115157_431/payload_N004.dng",
+      "source_sha256": "147c4faa3df15b1891ff1a31400926a98c5c6c641ece9803d2ec13b6eb652513"
+    },
+    {
+      "path": "frame-005.jpg",
+      "sha256": "a25493c04e619a669b027462ff3d7703fdd52b5947370811928a23a05d62c1ea",
+      "source_object": "https://storage.googleapis.com/hdrplusdata/20171106_subset/bursts/0006_20160722_115157_431/payload_N005.dng",
+      "source_sha256": "512e5cf2e1992d45aa35c1d1aaf7973053282255c1d7db7c63f6138fe442b02a"
+    },
+    {
+      "path": "frame-006.jpg",
+      "sha256": "23f39d770059a4f9e18a81e684a357031ef5da034ae48caa06c31ae3c7a2f4c2",
+      "source_object": "https://storage.googleapis.com/hdrplusdata/20171106_subset/bursts/0006_20160722_115157_431/payload_N006.dng",
+      "source_sha256": "fd659e755429a620b0a127ff3087afca452a391ef666ac6ddc5028e81487a34a"
+    }
+  ],
+  "limitations": [
+    "Static natural scene; no expression, pose, or unique-entry change.",
+    "JPEG derivatives are smaller than original DNG sources and become the exact Gate 1 uploaded-byte baseline.",
+    "Dataset suitability for relational compression is not proven until Gate 1."
+  ]
+}
+

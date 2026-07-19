@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://photofold.local/schemas/photofold-manifest-0.1.json",
+  "title": "PhotoFold Manifest 0.1 Draft",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "version", "reference_frame_index", "base", "frames", "assets"],
+  "properties": {
+    "format": { "const": "photofold" },
+    "version": { "const": "0.1" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "reference_frame_index": { "type": "integer", "minimum": 0 },
+    "base": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "width", "height", "encoding"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^base\\.webp$" },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 },
+        "encoding": { "const": "webp" }
+      }
+    },
+    "frames": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["index", "original_filename", "output_width", "output_height", "transform", "patches"],
+        "properties": {
+          "index": { "type": "integer", "minimum": 0 },
+          "original_filename": { "type": "string", "minLength": 1 },
+          "output_width": { "type": "integer", "minimum": 1 },
+          "output_height": { "type": "integer", "minimum": 1 },
+          "transform": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "reference_to_target", "interpolation", "border_mode"],
+            "properties": {
+              "type": { "enum": ["identity", "affine", "homography"] },
+              "reference_to_target": {
+                "type": "array",
+                "minItems": 9,
+                "maxItems": 9,
+                "items": { "type": "number" }
+              },
+              "interpolation": { "enum": ["nearest", "linear", "cubic"] },
+              "border_mode": { "const": "constant" }
+            }
+          },
+          "patches": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["bbox", "image_path", "mask_path"],
+              "properties": {
+                "bbox": {
+                  "type": "array",
+                  "minItems": 4,
+                  "maxItems": 4,
+                  "items": { "type": "integer", "minimum": 0 }
+                },
+                "image_path": { "type": "string", "minLength": 1 },
+                "mask_path": { "type": "string", "minLength": 1 },
+                "residual_path": { "type": ["string", "null"] }
+              }
+            }
+          }
+        }
+      }
+    },
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "bytes", "sha256"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "bytes": { "type": "integer", "minimum": 1 },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        }
+      }
+    },
+    "analysis_path": { "type": "string" },
+    "metrics_path": { "type": "string" },
+    "semantic_analysis_path": { "type": ["string", "null"] }
+  }
+}
+

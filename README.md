@@ -1,0 +1,100 @@
+# PhotoFold
+
+PhotoFold is a hackathon prototype exploring whether groups of similar photos can be stored as one shared scene plus frame-specific differences while retaining every frame.
+
+## Current status: Phase 0 only
+
+This repository currently implements only the Gate 0 foundation:
+
+- a FastAPI `/v1/health` endpoint;
+- a CLI codec doctor and real-dataset validator;
+- a health-only Next.js status page;
+- generated OpenAPI and TypeScript contracts;
+- pinned local dependencies and validation commands; and
+- one documented, checksum-verified real HDR+ burst.
+
+There is intentionally no upload flow, alignment, compression, package writer, reconstruction, quality/storage result, job system, or GPT integration yet. Those belong to later gates.
+
+## Prerequisites
+
+- Node.js 20.9 or newer. Gate 0 was verified with Node.js 24.13.0 and npm 11.6.2.
+- Python 3.12. Gate 0 was verified with Python 3.12.11.
+- macOS or a Unix-like shell for the provided `Makefile` and human-verification runner.
+
+## Install
+
+From the repository root:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install --constraint services/processor/requirements.lock -e 'services/processor[dev]'
+npm ci
+```
+
+The project does not need a database, container, cloud account, or model credential.
+
+## Validate Gate 0
+
+Run the individual contract checks:
+
+```bash
+.venv/bin/python -m photofold.cli doctor
+.venv/bin/python -m photofold.cli validate-dataset data/demo/hdrplus-static
+npm run contracts:check
+npm run lint --workspaces --if-present
+npm run typecheck --workspaces --if-present
+npm run build --workspace apps/web
+```
+
+Run the complete repeatable gate:
+
+```bash
+make verify-gate0
+```
+
+It writes human-readable evidence to:
+
+- `artifacts/gate0/doctor.json`
+- `artifacts/gate0/dataset-validation.json`
+- `packages/contracts/openapi.json`
+
+## Human verification
+
+Run:
+
+```bash
+make human-verify-gate0
+```
+
+Wait for `Gate 0 services ready`, then open:
+
+- <http://127.0.0.1:3000>
+- <http://127.0.0.1:8000/docs>
+
+Pass when the frontend visibly reports `Processor connected`, `WebP available`, and the validated `hdrplus-static` frame count; the API docs show `/v1/health`; and the command printed `GATE 0: PASS`. Stop both services with `Ctrl-C`.
+
+Fail if a URL does not load, WebP is unavailable, fewer than five compatible dataset frames validate, a generated contract is stale, any automated check fails, or an external service/credential is requested.
+
+## Manual development servers
+
+Processor:
+
+```bash
+.venv/bin/uvicorn photofold.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+Frontend, in a second terminal:
+
+```bash
+npm run dev --workspace apps/web
+```
+
+## Curated dataset
+
+`data/demo/hdrplus-static` contains seven 1600×1200 JPEG derivatives from one real Google HDR+ mobile-camera burst. The originals were captured within one burst and are licensed CC BY-SA. Exact provenance, attribution, source object URLs, conversion settings, derivative checksums, and limitations are in `data/demo/README.md` and the dataset's `manifest.json`.
+
+This static natural scene is appropriate for validating repository plumbing and later low-motion experiments. It does not cover the expression, pose, or unique-entry scenarios required by Gate 2.
+
+## Technical contracts
+
+Gate 0 freezes the draft measurement, transform, package, error, and independent-WebP benchmark contracts in [docs/TECHNICAL_CONTRACTS.md](docs/TECHNICAL_CONTRACTS.md). Gate 1 may change experimental thresholds only through measured evidence recorded with its run.

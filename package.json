@@ -1,0 +1,23 @@
+{
+  "name": "photofold",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace apps/web",
+    "contracts:check": "node scripts/check-contracts.mjs",
+    "contracts:generate": "node scripts/generate-contracts.mjs",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "openapi-typescript": "7.13.0"
+  },
+  "engines": {
+    "node": ">=20.9.0",
+    "npm": ">=10.0.0"
+  }
+}

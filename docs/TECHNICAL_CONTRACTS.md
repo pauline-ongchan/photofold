@@ -1,0 +1,122 @@
+# PhotoFold Technical Contracts
+
+**Status:** Gate 0 draft, frozen for the first Gate 1 experiment  
+**Authority:** `PhotoFold_Developer_PRD.md`, clarified by `IMPLEMENTATION_PLAN.md`
+
+This document fixes the terms needed to build a credible experiment. It does not implement compression or claim any result.
+
+## Measurement contract
+
+### Source bytes
+
+```text
+original_total_bytes = sum(stat(exact uploaded source file))
+```
+
+Source bytes are measured before EXIF normalization, decoding, resizing, or transcoding.
+
+### Package bytes
+
+```text
+package_total_bytes = stat(closed final .photofold archive)
+byte_delta = original_total_bytes - package_total_bytes
+percent_change = byte_delta / original_total_bytes * 100
+bytes_saved = max(byte_delta, 0)
+percent_saved = max(percent_change, 0)
+```
+
+The product package count includes ZIP overhead and every file in the downloadable archive. Inspection outputs outside the archive do not count. Metrics inside the archive omit `package_total_bytes` to avoid a self-referential file-size calculation; the external run result owns that value.
+
+### Quality
+
+- Normalize EXIF orientation before quality comparison.
+- Define the normalized display-oriented dimensions as output dimensions.
+- Reopen reconstructions through the public package decoder.
+- Calculate RGB SSIM with `data_range=255` and `channel_axis=2` for opaque photos.
+- Record per-frame, mean, and minimum SSIM.
+- Thresholds remain `null` until Gate 1 measures a rate-distortion sweep and the team performs visual review.
+- Difference heatmaps and a local-error diagnostic supplement SSIM; they do not replace it.
+
+## Transform contract
+
+- Store a row-major 3×3 matrix named `reference_to_target`.
+- Coordinates are normalized, display-oriented full-resolution pixel coordinates.
+- The matrix maps the decoded reference base into the target output canvas.
+- Record transform type, interpolation mode, border mode, output width, and output height.
+- Store every changed-region patch, lossless mask, and bounding box in target-frame coordinates.
+- Pixels outside valid warped-base coverage are changed pixels.
+
+## Package schema draft
+
+The normative Gate 0 draft is `packages/contracts/photofold-manifest.schema.json`.
+
+Initial archive layout:
+
+```text
+moment.photofold
+├── manifest.json
+├── base.webp
+├── frames/{index}/frame.json
+├── frames/{index}/patches/{patch}.webp
+├── frames/{index}/patches/{patch}-mask.png
+└── metadata/
+    ├── analysis.json
+    └── metrics.json
+```
+
+The manifest inventories the byte size and SHA-256 checksum of every referenced non-manifest asset. It cannot checksum itself. The external run result may contain the final archive checksum.
+
+## Suitability and region definitions
+
+- Every upload retains its original index and an explicit accepted/rejected disposition.
+- Folding requires 5–20 accepted frames.
+- Gate 1's primary dataset must accept and reconstruct every input frame.
+- `split_recommended` is advisory only.
+- P0 may reject sets with differing normalized dimensions.
+
+```text
+changed_region_percent = changed_mask_pixels / output_pixels * 100
+shared_region_percent = valid_warped_base_pixels_not_changed / output_pixels * 100
+```
+
+Aggregates are weighted by output pixel count. Analysis-resolution values are labeled estimates; final values come from full-resolution masks.
+
+## Error taxonomy
+
+Every later processing error uses a stable code, user-safe message, stage, affected frame indices, retryability, and development-only debug detail.
+
+| Code | Stage | Meaning |
+|---|---|---|
+| `INVALID_FILE_COUNT` | upload | Fewer than 5 or more than 20 files. |
+| `UNSUPPORTED_FILE_TYPE` | upload | File format is not supported. |
+| `IMAGE_DECODE_FAILED` | preprocess | Image cannot be decoded safely. |
+| `DIMENSIONS_INCOMPATIBLE` | preprocess | Normalized display dimensions differ. |
+| `CHECKSUM_MISMATCH` | validation | Curated/source asset does not match its manifest. |
+| `INSUFFICIENT_OVERLAP` | analyze | Shared scene overlap is below the configured threshold. |
+| `INSUFFICIENT_FEATURES` | align | Too few reliable feature matches. |
+| `IMPLAUSIBLE_TRANSFORM` | align | Transform geometry fails sanity checks. |
+| `ALIGNMENT_FAILED` | align | A frame cannot be aligned reliably. |
+| `PACKAGE_VALIDATION_FAILED` | package | Schema, path, checksum, codec, or asset validation fails. |
+| `RECONSTRUCTION_FAILED` | reconstruct | Package-only reconstruction cannot finish. |
+| `QUALITY_BELOW_THRESHOLD` | evaluate | A completed reconstruction misses the recorded threshold. |
+| `NO_MEANINGFUL_SAVINGS` | evaluate | The closed archive is not smaller than exact sources. |
+| `JOB_BUSY` | service | The single-worker processor cannot accept another fold. |
+| `MOMENT_NOT_FOUND` | service | Moment does not exist or has expired. |
+| `SEMANTIC_PROVIDER_FAILED` | semantic | Optional provider failed; deterministic processing continues. |
+
+Only dataset/checksum and health concerns are executable in Gate 0. The rest are contract reservations, not implemented routes.
+
+## Independent-WebP control
+
+Gate 1 must encode every normalized frame independently as WebP across the same quality sweep used for PhotoFold assets. It must compare rate-distortion points rather than one arbitrary quality setting.
+
+PhotoFold proves relational benefit only when:
+
+```text
+package_total_bytes < independent_webp_total_bytes
+```
+
+at equal or better mean and minimum SSIM. Beating only the uploaded source bytes is a storage reduction, not proof that shared-scene encoding caused it.
+
+The normative result shape is `packages/contracts/experiment-result.schema.json`. It distinguishes `storage_reduction_pass` from `relational_hypothesis_pass` and never allows the latter without the former's measured evidence.
+
