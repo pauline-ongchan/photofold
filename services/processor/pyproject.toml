@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "photofold-processor"
 version = "0.1.0"
-description = "PhotoFold deterministic processor foundation"
+description = "PhotoFold deterministic compression experiment and processor foundation"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
@@ -15,6 +15,7 @@ dependencies = [
   "pillow==12.3.0",
   "pydantic==2.13.4",
   "python-multipart==0.0.32",
+  "PyYAML==6.0.3",
   "scikit-image==0.26.0",
   "uvicorn[standard]==0.51.0",
 ]
@@ -42,3 +43,6 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/photofold/gate1/report.py" = ["E501"]
