@@ -1,4 +1,4 @@
-"""Phase 0 command-line entrypoints."""
+"""Deterministic PhotoFold command-line entrypoints."""
 
 from __future__ import annotations
 
@@ -9,6 +9,13 @@ from typing import Any
 
 from photofold.dataset import DatasetValidationError, validate_dataset
 from photofold.doctor import run_doctor
+from photofold.gate1.benchmark import run_benchmark
+from photofold.gate1.bundle import (
+    PackageValidationError,
+    export_package_frame,
+    verify_package,
+)
+from photofold.gate1.report import verify_report
 
 
 def _write_json(payload: dict[str, Any], output: str | None) -> None:
@@ -55,10 +62,74 @@ def _export_openapi(args: argparse.Namespace) -> int:
     return 0
 
 
+def _benchmark(args: argparse.Namespace) -> int:
+    result = run_benchmark(
+        dataset_path=args.dataset,
+        config_path=args.config,
+        output_path=args.output,
+    )
+    summary = {
+        "status": "pass" if result["gate_pass"] else "fail",
+        "gate_pass": result["gate_pass"],
+        "dataset_id": result["dataset_id"],
+        "accepted_frame_count": result["accepted_frame_count"],
+        "reconstructed_frame_count": result["reconstructed_frame_count"],
+        "original_total_bytes": result["original_total_bytes"],
+        "package_total_bytes": result["package_total_bytes"],
+        "independent_webp_total_bytes": result["independent_webp_total_bytes"],
+        "percent_saved": result["percent_saved"],
+        "mean_ssim": result["mean_ssim"],
+        "minimum_ssim": result["minimum_ssim"],
+        "storage_reduction_pass": result["storage_reduction_pass"],
+        "relational_hypothesis_pass": result["relational_hypothesis_pass"],
+        "failed_checks": result["failed_checks"],
+        "report": result["report"],
+    }
+    _write_json(summary, None)
+    return 0 if result["gate_pass"] else 1
+
+
+def _verify_package(args: argparse.Namespace) -> int:
+    try:
+        result = verify_package(args.package)
+    except PackageValidationError as error:
+        result = {
+            "status": "fail",
+            "package": str(Path(args.package).resolve()),
+            "error": str(error),
+        }
+    _write_json(result, args.output)
+    return 0 if result["status"] == "pass" else 1
+
+
+def _export_frame(args: argparse.Namespace) -> int:
+    try:
+        result = export_package_frame(
+            package_path=args.package,
+            frame_index=args.frame,
+            output_path=args.output,
+            image_format=args.format,
+        )
+    except (PackageValidationError, ValueError) as error:
+        result = {
+            "status": "fail",
+            "package": str(Path(args.package).resolve()),
+            "error": str(error),
+        }
+    _write_json(result, None)
+    return 0 if result["status"] == "pass" else 1
+
+
+def _verify_report(args: argparse.Namespace) -> int:
+    result = verify_report(args.report, expected_frames=args.expected_frames)
+    _write_json(result, args.output)
+    return 0 if result["status"] == "pass" else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="photofold",
-        description="PhotoFold Phase 0 capability and contract tools",
+        description="PhotoFold deterministic capability, package, and experiment tools",
     )
     commands = parser.add_subparsers(dest="command", required=True)
 
@@ -80,6 +151,42 @@ def build_parser() -> argparse.ArgumentParser:
     )
     openapi.add_argument("--output", required=True, help="Destination JSON file")
     openapi.set_defaults(handler=_export_openapi)
+
+    benchmark = commands.add_parser(
+        "benchmark",
+        help="Run the real Gate 1 compression experiment and generate its report",
+    )
+    benchmark.add_argument("--dataset", required=True, help="Curated dataset directory")
+    benchmark.add_argument("--config", required=True, help="Gate 1 YAML configuration")
+    benchmark.add_argument("--output", required=True, help="Experiment artifact directory")
+    benchmark.set_defaults(handler=_benchmark)
+
+    package = commands.add_parser(
+        "verify-package",
+        help="Validate and reconstruct every frame using only a .photofold package",
+    )
+    package.add_argument("package", help="Path to the .photofold archive")
+    package.add_argument("--output", help="Also write the JSON result to this file")
+    package.set_defaults(handler=_verify_package)
+
+    export = commands.add_parser(
+        "export",
+        help="Decode one package frame and export a standard image",
+    )
+    export.add_argument("package", help="Path to the .photofold archive")
+    export.add_argument("--frame", required=True, type=int, help="Zero-based frame index")
+    export.add_argument("--format", required=True, choices=["webp", "jpeg", "png"])
+    export.add_argument("--output", required=True, help="Export destination")
+    export.set_defaults(handler=_export_frame)
+
+    report = commands.add_parser(
+        "verify-report",
+        help="Check that a Gate 1 report is self-contained and complete",
+    )
+    report.add_argument("report", help="Path to report.html")
+    report.add_argument("--expected-frames", type=int, default=7)
+    report.add_argument("--output", help="Also write the JSON result to this file")
+    report.set_defaults(handler=_verify_report)
 
     return parser
 

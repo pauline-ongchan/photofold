@@ -69,8 +69,8 @@ export default function Home() {
               </p>
             </div>
             <p className="max-w-sm text-sm leading-6 text-[#607066]">
-              This page reports foundation readiness only. Compression, reconstruction, storage
-              savings, and quality metrics are intentionally not implemented yet.
+              This page still reports foundation readiness only. The Gate 1 compression proof is
+              available through the CLI and offline report, not a product workflow.
             </p>
           </div>
         </header>
@@ -99,7 +99,7 @@ export default function Home() {
         </section>
 
         <footer className="mt-7 flex flex-wrap items-center justify-between gap-3 px-1 text-xs text-[#607066]">
-          <span>Deterministic mode · no model credential required</span>
+          <span>Gate 1 CLI proof available · no model credential required</span>
           <a className="underline underline-offset-4" href={`${processorUrl}/docs`}>
             Open processor API docs
           </a>
@@ -187,4 +187,3 @@ function DataPoint({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-

@@ -1,24 +1,42 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://photofold.local/schemas/photofold-manifest-0.1.json",
-  "title": "PhotoFold Manifest 0.1 Draft",
+  "title": "PhotoFold Manifest 0.1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["format", "version", "reference_frame_index", "base", "frames", "assets"],
+  "required": [
+    "format",
+    "version",
+    "created_at",
+    "reference_frame_index",
+    "required_codecs",
+    "base",
+    "frames",
+    "assets",
+    "analysis_path",
+    "metrics_path",
+    "semantic_analysis_path"
+  ],
   "properties": {
     "format": { "const": "photofold" },
     "version": { "const": "0.1" },
     "created_at": { "type": "string", "format": "date-time" },
     "reference_frame_index": { "type": "integer", "minimum": 0 },
+    "required_codecs": {
+      "type": "array",
+      "items": { "enum": ["webp", "png"] },
+      "uniqueItems": true
+    },
     "base": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["path", "width", "height", "encoding"],
+      "required": ["path", "width", "height", "encoding", "quality"],
       "properties": {
-        "path": { "type": "string", "pattern": "^base\\.webp$" },
+        "path": { "const": "base.webp" },
         "width": { "type": "integer", "minimum": 1 },
         "height": { "type": "integer", "minimum": 1 },
-        "encoding": { "const": "webp" }
+        "encoding": { "const": "webp" },
+        "quality": { "type": "integer", "minimum": 1, "maximum": 100 }
       }
     },
     "frames": {
@@ -28,7 +46,14 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["index", "original_filename", "output_width", "output_height", "transform", "patches"],
+        "required": [
+          "index",
+          "original_filename",
+          "output_width",
+          "output_height",
+          "transform",
+          "patches"
+        ],
         "properties": {
           "index": { "type": "integer", "minimum": 0 },
           "original_filename": { "type": "string", "minLength": 1 },
@@ -37,7 +62,16 @@
           "transform": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["type", "reference_to_target", "interpolation", "border_mode"],
+            "required": [
+              "type",
+              "reference_to_target",
+              "interpolation",
+              "border_mode",
+              "inlier_count",
+              "inlier_ratio",
+              "median_reprojection_error",
+              "valid_overlap"
+            ],
             "properties": {
               "type": { "enum": ["identity", "affine", "homography"] },
               "reference_to_target": {
@@ -46,8 +80,12 @@
                 "maxItems": 9,
                 "items": { "type": "number" }
               },
-              "interpolation": { "enum": ["nearest", "linear", "cubic"] },
-              "border_mode": { "const": "constant" }
+              "interpolation": { "const": "linear" },
+              "border_mode": { "const": "constant" },
+              "inlier_count": { "type": "integer", "minimum": 0 },
+              "inlier_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+              "median_reprojection_error": { "type": "number", "minimum": 0 },
+              "valid_overlap": { "type": "number", "minimum": 0, "maximum": 1 }
             }
           },
           "patches": {
@@ -55,16 +93,23 @@
             "items": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["bbox", "image_path", "mask_path"],
+              "required": ["bbox", "image_path", "mask_path", "feather_radius", "residual_path"],
               "properties": {
                 "bbox": {
                   "type": "array",
                   "minItems": 4,
                   "maxItems": 4,
-                  "items": { "type": "integer", "minimum": 0 }
+                  "prefixItems": [
+                    { "type": "integer", "minimum": 0 },
+                    { "type": "integer", "minimum": 0 },
+                    { "type": "integer", "minimum": 1 },
+                    { "type": "integer", "minimum": 1 }
+                  ],
+                  "items": false
                 },
                 "image_path": { "type": "string", "minLength": 1 },
                 "mask_path": { "type": "string", "minLength": 1 },
+                "feather_radius": { "type": "integer", "minimum": 0, "maximum": 64 },
                 "residual_path": { "type": ["string", "null"] }
               }
             }
@@ -74,6 +119,7 @@
     },
     "assets": {
       "type": "array",
+      "minItems": 1,
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -85,9 +131,8 @@
         }
       }
     },
-    "analysis_path": { "type": "string" },
-    "metrics_path": { "type": "string" },
-    "semantic_analysis_path": { "type": ["string", "null"] }
+    "analysis_path": { "const": "metadata/analysis.json" },
+    "metrics_path": { "const": "metadata/metrics.json" },
+    "semantic_analysis_path": { "type": "null" }
   }
 }
-

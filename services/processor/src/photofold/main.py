@@ -1,4 +1,4 @@
-"""FastAPI application for the Phase 0 processor boundary."""
+"""FastAPI foundation boundary; Gate 1 remains CLI-only."""
 
 from __future__ import annotations
 
@@ -14,8 +14,9 @@ app = FastAPI(
     title="PhotoFold Processor",
     summary="Deterministic PhotoFold processor boundary",
     description=(
-        "Phase 0 exposes capability and curated-dataset health only. "
-        "Compression, reconstruction, uploads, jobs, and model calls are not implemented."
+        "The API exposes capability and curated-dataset health only. "
+        "Gate 1 compression and reconstruction remain CLI-only; uploads, jobs, and model calls "
+        "are not implemented."
     ),
     version=__version__,
 )
@@ -37,4 +38,3 @@ app.add_middleware(
 )
 def get_health() -> HealthResponse:
     return health_response()
-
