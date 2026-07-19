@@ -105,7 +105,7 @@
     }
   },
   "info": {
-    "description": "Phase 0 exposes capability and curated-dataset health only. Compression, reconstruction, uploads, jobs, and model calls are not implemented.",
+    "description": "The API exposes capability and curated-dataset health only. Gate 1 compression and reconstruction remain CLI-only; uploads, jobs, and model calls are not implemented.",
     "summary": "Deterministic PhotoFold processor boundary",
     "title": "PhotoFold Processor",
     "version": "0.1.0"

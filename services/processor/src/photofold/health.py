@@ -15,8 +15,8 @@ def health_response() -> HealthResponse:
     doctor = run_doctor()
     dataset_summary: DatasetSummary | None = None
     limitations = [
-        "Phase 0 foundation only; compression and reconstruction are not implemented.",
-        "Storage and quality metrics do not exist until Gate 1 processes real outputs.",
+        "Gate 1 compression is a CLI experiment and is not exposed through this API.",
+        "Upload, job processing, and the product review interface are not implemented.",
     ]
 
     try:
@@ -44,4 +44,3 @@ def health_response() -> HealthResponse:
         dataset=dataset_summary,
         limitations=limitations,
     )
-
