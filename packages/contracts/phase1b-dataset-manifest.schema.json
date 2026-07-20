@@ -1,0 +1,213 @@
+{
+  "$defs": {
+    "Consent": {
+      "additionalProperties": false,
+      "properties": {
+        "basis": {
+          "minLength": 1,
+          "title": "Basis",
+          "type": "string"
+        },
+        "identifiable_people_visible": {
+          "title": "Identifiable People Visible",
+          "type": "boolean"
+        },
+        "notes": {
+          "minLength": 1,
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "basis",
+        "identifiable_people_visible",
+        "notes"
+      ],
+      "title": "Consent",
+      "type": "object"
+    },
+    "Dimensions": {
+      "additionalProperties": false,
+      "properties": {
+        "height": {
+          "exclusiveMinimum": 0,
+          "title": "Height",
+          "type": "integer"
+        },
+        "width": {
+          "exclusiveMinimum": 0,
+          "title": "Width",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "width",
+        "height"
+      ],
+      "title": "Dimensions",
+      "type": "object"
+    },
+    "License": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "notes": {
+          "minLength": 1,
+          "title": "Notes",
+          "type": "string"
+        },
+        "redistribution_permitted": {
+          "title": "Redistribution Permitted",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "redistribution_permitted",
+        "notes"
+      ],
+      "title": "License",
+      "type": "object"
+    },
+    "ManifestFile": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "title": "ManifestFile",
+      "type": "object"
+    },
+    "Provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "authorization": {
+          "minLength": 1,
+          "title": "Authorization",
+          "type": "string"
+        },
+        "capture_date": {
+          "minLength": 1,
+          "title": "Capture Date",
+          "type": "string"
+        },
+        "device": {
+          "minLength": 1,
+          "title": "Device",
+          "type": "string"
+        },
+        "source": {
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "capture_date",
+        "device",
+        "authorization"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "capture_notes": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Capture Notes",
+      "type": "array"
+    },
+    "consent": {
+      "$ref": "#/$defs/Consent"
+    },
+    "expected_dimensions": {
+      "$ref": "#/$defs/Dimensions"
+    },
+    "expected_frame_count": {
+      "maximum": 20,
+      "minimum": 5,
+      "title": "Expected Frame Count",
+      "type": "integer"
+    },
+    "files": {
+      "items": {
+        "$ref": "#/$defs/ManifestFile"
+      },
+      "maxItems": 20,
+      "minItems": 5,
+      "title": "Files",
+      "type": "array"
+    },
+    "id": {
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "known_limitations": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Known Limitations",
+      "type": "array"
+    },
+    "license": {
+      "$ref": "#/$defs/License"
+    },
+    "provenance": {
+      "$ref": "#/$defs/Provenance"
+    },
+    "scenario_category": {
+      "minLength": 1,
+      "title": "Scenario Category",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "title": {
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "id",
+    "title",
+    "scenario_category",
+    "provenance",
+    "consent",
+    "license",
+    "capture_notes",
+    "known_limitations",
+    "expected_frame_count",
+    "expected_dimensions",
+    "files"
+  ],
+  "title": "Phase1BDatasetManifest",
+  "type": "object"
+}

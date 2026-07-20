@@ -17,6 +17,7 @@ from photofold.gate1.bundle import (
 )
 from photofold.gate1.report import verify_report
 from photofold.phase1b.datasets import validate_phase1b_collection
+from photofold.phase1b.models import export_phase1b_schemas
 
 
 def _write_json(payload: dict[str, Any], output: str | None) -> None:
@@ -66,6 +67,13 @@ def _export_openapi(args: argparse.Namespace) -> int:
         encoding="utf-8",
     )
     print(f"Wrote {output_path}")
+    return 0
+
+
+def _export_phase1b_schemas(args: argparse.Namespace) -> int:
+    paths = export_phase1b_schemas(args.output_directory)
+    for path in paths:
+        print(f"Wrote {path}")
     return 0
 
 
@@ -166,6 +174,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     openapi.add_argument("--output", required=True, help="Destination JSON file")
     openapi.set_defaults(handler=_export_openapi)
+
+    phase1b_schemas = commands.add_parser(
+        "export-phase1b-schemas",
+        help="Write generated Phase 1B JSON schemas from the Pydantic models",
+    )
+    phase1b_schemas.add_argument("--output-directory", required=True)
+    phase1b_schemas.set_defaults(handler=_export_phase1b_schemas)
 
     benchmark = commands.add_parser(
         "benchmark",

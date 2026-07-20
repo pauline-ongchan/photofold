@@ -1,0 +1,89 @@
+{
+  "$defs": {
+    "HumanDatasetReview": {
+      "additionalProperties": false,
+      "properties": {
+        "lowest_psnr_frame_inspected": {
+          "minimum": 0,
+          "title": "Lowest Psnr Frame Inspected",
+          "type": "integer"
+        },
+        "lowest_ssim_frame_inspected": {
+          "minimum": 0,
+          "title": "Lowest Ssim Frame Inspected",
+          "type": "integer"
+        },
+        "notes": {
+          "minLength": 1,
+          "title": "Notes",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "pass",
+            "fail"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "notes",
+        "lowest_ssim_frame_inspected",
+        "lowest_psnr_frame_inspected"
+      ],
+      "title": "HumanDatasetReview",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "complexity_disproportionate": {
+      "title": "Complexity Disproportionate",
+      "type": "boolean"
+    },
+    "complexity_notes": {
+      "title": "Complexity Notes",
+      "type": "string"
+    },
+    "datasets": {
+      "additionalProperties": {
+        "$ref": "#/$defs/HumanDatasetReview"
+      },
+      "title": "Datasets",
+      "type": "object"
+    },
+    "review_basis_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Review Basis Sha256",
+      "type": "string"
+    },
+    "reviewed_at": {
+      "format": "date-time",
+      "title": "Reviewed At",
+      "type": "string"
+    },
+    "reviewer": {
+      "minLength": 1,
+      "title": "Reviewer",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "review_basis_sha256",
+    "reviewer",
+    "reviewed_at",
+    "datasets",
+    "complexity_disproportionate",
+    "complexity_notes"
+  ],
+  "title": "HumanReview",
+  "type": "object"
+}

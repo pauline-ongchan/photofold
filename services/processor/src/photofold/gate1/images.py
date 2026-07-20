@@ -69,6 +69,14 @@ def rgb_ssim(original: np.ndarray, reconstruction: np.ndarray) -> float:
     )
 
 
+def rgb_psnr(original: np.ndarray, reconstruction: np.ndarray) -> float:
+    difference = original.astype(np.float64) - reconstruction.astype(np.float64)
+    mean_squared_error = float(np.mean(difference * difference))
+    if mean_squared_error == 0:
+        return float("inf")
+    return float(10 * np.log10((255**2) / mean_squared_error))
+
+
 def difference_heatmap(original: np.ndarray, reconstruction: np.ndarray) -> np.ndarray:
     difference = np.max(
         np.abs(original.astype(np.int16) - reconstruction.astype(np.int16)),
