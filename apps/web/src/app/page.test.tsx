@@ -40,14 +40,22 @@ const sourceFrames = Array.from({ length: 5 }, (_, index) => ({
 }));
 
 const analysis = {
-  schema_version: "1.0",
+  schema_version: "1.1",
   analyzed_at: "2026-07-19T12:00:00Z",
   status: "analyzed_foldable",
-  suitability: "safe_to_fold",
-  reasons: ["All frames passed deterministic validation and alignment thresholds."],
+  suitability: "foldable_with_reduced_savings",
+  strategy: "hybrid",
+  reasons: ["4 frames can share scene data; 1 will be stored independently."],
   source_frames: sourceFrames,
   original_total_bytes: 1000,
   normalized_dimensions: { width: 1600, height: 1200 },
+  shared_frame_count: 4,
+  fallback_frame_count: 1,
+  frame_dispositions: Array.from({ length: 5 }, (_, index) => ({
+    frame_index: index,
+    storage_mode: index === 2 ? "shared_reference" : index === 4 ? "independent_source" : "shared_delta",
+    fallback_reason: index === 4 ? "Alignment evidence did not pass the threshold." : null,
+  })),
   reference_frame_index: 2,
   reference_score: 0.91,
   reference_candidates: [
@@ -65,23 +73,36 @@ const analysis = {
   ],
   alignment: Array.from({ length: 5 }, (_, index) => ({
     frame_index: index,
-    type: index === 2 ? "identity" : "affine",
-    reference_to_target: [1, 0, 0, 0, 1, 0, 0, 0, 1],
-    inlier_count: index === 2 ? 0 : 42,
-    match_count: index === 2 ? 0 : 44,
-    inlier_ratio: 0.95,
-    median_reprojection_error: 0.5,
-    valid_overlap: 0.98,
+    decision: index === 4 ? "fallback" : "shared",
+    type: index === 2 ? "identity" : index === 4 ? null : "affine",
+    reference_to_target: index === 4 ? null : [1, 0, 0, 0, 1, 0, 0, 0, 1],
+    inlier_count: index === 4 ? null : index === 2 ? 0 : 42,
+    match_count: index === 4 ? null : index === 2 ? 0 : 44,
+    inlier_ratio: index === 4 ? null : 0.95,
+    median_reprojection_error: index === 4 ? null : 0.5,
+    reprojection_error_units: "analysis_pixels",
+    valid_overlap: index === 4 ? null : 0.98,
+    fallback_reason: index === 4 ? "Alignment evidence did not pass the threshold." : null,
   })),
+  alignment_measurement: {
+    units: "analysis_pixels",
+    analysis_max_dimension: 800,
+    max_median_reprojection_error: 2,
+    min_inlier_ratio: 0.8,
+    description: "Measured on the fixed analysis canvas.",
+  },
   config_sha256: "b".repeat(64),
   warnings: ["Local prototype warning."],
   deferred_fields: ["suitability_score", "automatic_set_splitting"],
 };
 
 const result = {
-  schema_version: "1.0",
+  schema_version: "1.1",
   completed_at: "2026-07-19T12:01:00Z",
   status: "complete_no_savings",
+  strategy: "hybrid",
+  shared_frame_count: 4,
+  fallback_frame_count: 1,
   reference_frame_index: 2,
   reconstructed_frame_count: 5,
   storage: {
@@ -107,6 +128,8 @@ const result = {
     width: frame.width,
     height: frame.height,
     original_bytes: frame.bytes,
+    storage_mode: analysis.frame_dispositions[frame.index].storage_mode,
+    fallback_reason: analysis.frame_dispositions[frame.index].fallback_reason,
     reconstructed: true,
     ssim: 0.9 - frame.index / 100,
     quality_threshold_pass: true,
@@ -125,6 +148,7 @@ const result = {
     patch_count: 4,
     mask_count: 4,
     metadata_count: 2,
+    independent_source_count: 1,
     member_payload_bytes: 1200,
   },
   package_artifact: "moment.photofold",
@@ -186,6 +210,9 @@ describe("PhotoFold Gate 3 workflow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Analyze this moment" }));
 
     expect(await screen.findByText("Processor analysis")).toBeInTheDocument();
+    expect(screen.getByText("Ready to fold")).toBeInTheDocument();
+    expect(screen.getByText("4 frames can share scene data; 1 will be stored independently.")).toBeInTheDocument();
+    expect(screen.getAllByText("Fallback").length).toBeGreaterThan(0);
     expect(screen.getByText(/suitability score/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Fold this moment" }));
 
@@ -193,8 +220,60 @@ describe("PhotoFold Gate 3 workflow", () => {
     expect(screen.getByText("Difference vs uploads")).toBeInTheDocument();
     expect(screen.queryByText("Saved vs uploads")).not.toBeInTheDocument();
     expect(screen.queryByText("Moment folded successfully")).not.toBeInTheDocument();
+    expect(screen.getByText("Download PhotoFold archive")).toBeInTheDocument();
+    expect(screen.getByText("Requires PhotoFold to reconstruct the complete set.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Heatmap" }));
     expect(screen.getByRole("img", { name: /difference for frame-2.jpg/i })).toBeInTheDocument();
+  });
+
+  it("uses neutral independent-only strategy language", async () => {
+    const independentAnalysis = {
+      ...analysis,
+      suitability: "foldable_with_reduced_savings",
+      strategy: "independent_only",
+      reasons: ["These photos will use independent storage."],
+      normalized_dimensions: null,
+      shared_frame_count: 0,
+      fallback_frame_count: 5,
+      reference_frame_index: null,
+      reference_score: null,
+      frame_dispositions: sourceFrames.map((frame) => ({
+        frame_index: frame.index,
+        storage_mode: "independent_source",
+        fallback_reason: "No useful shared-scene group passed alignment.",
+      })),
+      alignment: sourceFrames.map((frame) => ({
+        frame_index: frame.index,
+        decision: "fallback",
+        type: null,
+        reference_to_target: null,
+        inlier_count: null,
+        match_count: null,
+        inlier_ratio: null,
+        median_reprojection_error: null,
+        reprojection_error_units: "analysis_pixels",
+        valid_overlap: null,
+        fallback_reason: "No useful shared-scene group passed alignment.",
+      })),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonResponse({
+          runId: "00000000-0000-4000-8000-000000000001",
+          analysis: independentAnalysis,
+        }),
+      ),
+    );
+    render(<Home />);
+    choose();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Analyze this moment" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Analyze this moment" }));
+
+    expect(await screen.findByText("These photos will use independent storage.")).toBeInTheDocument();
+    expect(screen.getByText("No shared base")).toBeInTheDocument();
+    expect(screen.getAllByText("Fallback")).toHaveLength(5);
+    expect(screen.getByRole("button", { name: "Fold this moment" })).toBeEnabled();
   });
 });
