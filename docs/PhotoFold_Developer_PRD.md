@@ -604,9 +604,20 @@ For the hackathon MVP:
 - Use synchronous requests for short operations
 - Add status polling only if processing exceeds normal request limits
 
-### Proposed API surface
+### Prototype execution profile
 
-Exact route names may change, but the frontend requires equivalent capabilities.
+The accepted Phase 1B multi-dataset experiment is sufficient evidence to proceed to a controlled local web prototype without first completing the stable processing-service gate. Under this profile:
+
+- Gate 2 is deferred, not passed.
+- The Gate 3P prototype may use a local-only Next.js route handler or server action as a narrow bridge to the existing processor CLI instead of adding FastAPI product routes.
+- The bridge must use a fixed argument vector without shell interpolation, isolate each run in a temporary workspace, permit only one active fold, and expose only real processor results and artifacts.
+- Progress may be coarse, but it must represent actual execution and must never be timer-only or fabricated.
+- Manual/startup cleanup is sufficient for the controlled demo. Durable state, restart recovery, concurrent jobs, generated product-route OpenAPI types, delete endpoints, and TTL cleanup remain Gate 2 work.
+- This exception applies only to a local single-machine prototype. Remote deployment, multi-user use, or a separately supported processor boundary requires returning to Gate 2.
+
+### Deferred processing API surface
+
+This is the target surface when Gate 2 resumes. Exact route names may change. The Gate 3P local bridge does not need to reproduce these HTTP routes.
 
 ```text
 POST /moments
@@ -997,7 +1008,9 @@ Exit criteria:
 
 If this gate fails, optimize the encoding strategy or narrow the supported dataset before continuing.
 
-### Gate 2: Stable processing service
+### Gate 2: Stable processing service — deferred for the local prototype
+
+Gate 2 remains required for a reusable or remotely deployed processing service. It is not a prerequisite for the constrained Gate 3P prototype execution profile above and must not be marked complete merely because that prototype works.
 
 Deliverables:
 
@@ -1014,14 +1027,14 @@ Exit criteria:
 - No hard-coded savings values
 - Package and quality metrics are reproducible within reasonable encoding variation
 
-### Gate 3: End-to-end product flow
+### Gate 3P: Local end-to-end prototype flow
 
 Deliverables:
 
 - Upload screen
 - Analysis screen
 - Fold action
-- Progress state
+- Honest processing state
 - Results screen
 - Frame viewer
 - Comparison view
@@ -1032,6 +1045,8 @@ Exit criteria:
 - A user can complete the full workflow without command-line steps
 - Results are produced by the real processor
 - Error states are understandable
+- The local bridge uses fixed arguments, run-scoped paths, one active fold, and real generated artifacts
+- UI values match processor result files and downloaded artifact sizes without requiring FastAPI product routes
 
 ### Gate 4: Semantic preservation
 
