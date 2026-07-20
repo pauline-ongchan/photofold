@@ -14,10 +14,21 @@ import re
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 from PIL import Image, ImageOps, UnidentifiedImageError
 
-from photofold.gate1.bundle import PackageValidationError, verify_package
-from photofold.gate1.images import sha256_file
+from photofold.gate1.bundle import (
+    PackageValidationError,
+    decode_package_frame,
+    verify_package,
+)
+from photofold.gate1.images import (
+    difference_heatmap,
+    load_rgb,
+    rgb_psnr,
+    rgb_ssim,
+    sha256_file,
+)
 from photofold.phase1b.aggregate import build_aggregate
 from photofold.phase1b.baseline import MATCHED_QUALITIES, point_qualifies, select_matched_point
 from photofold.phase1b.datasets import (
@@ -347,6 +358,44 @@ def _render_phase1b_report(
     aggregate: Phase1BAggregateResult,
 ) -> str:
     root = Path(artifact_root).expanduser().resolve()
+    successful_datasets = []
+    for dataset_id in PHASE1B_DATASET_IDS:
+        try:
+            successful_datasets.append(
+                Phase1BDatasetResult.model_validate(results[dataset_id])
+            )
+        except ValueError:
+            continue
+    total_dataset_wall_ms = sum(
+        float(dataset.timings["dataset_wall_ms"]) for dataset in successful_datasets
+    )
+    total_photofold_encoding_ms = sum(
+        float(dataset.timings["photofold_encoding_ms"])
+        for dataset in successful_datasets
+    )
+    total_matched_sweep_ms = sum(
+        float(dataset.timings["matched_webp_sweep_ms"])
+        for dataset in successful_datasets
+    )
+    total_verification_and_reconstruction_ms = sum(
+        float(dataset.timings["package_verification_ms"])
+        + float(dataset.timings["reconstruction_total_ms"])
+        for dataset in successful_datasets
+    )
+    independent_webp_encodes = sum(
+        len(dataset.fixed_webp.per_frame)
+        + len(dataset.matched_webp.curve) * len(dataset.per_frame)
+        for dataset in successful_datasets
+    )
+    savings_vs_originals_percent = (
+        (
+            aggregate.aggregate_original_bytes - aggregate.aggregate_photofold_bytes
+        )
+        / aggregate.aggregate_original_bytes
+        * 100
+        if aggregate.aggregate_original_bytes
+        else None
+    )
     aggregate_rows = [
         [
             item.dataset_id,
@@ -361,6 +410,23 @@ def _render_phase1b_report(
         for item in aggregate.datasets
     ]
     review = aggregate.human_review
+    if review is None:
+        complexity_position = (
+            "The human runtime/complexity determination is pending. The measurements "
+            "below remain limitations and are not yet a completed review judgment."
+        )
+    elif review.complexity_disproportionate:
+        complexity_position = (
+            "The reviewer determined that runtime or implementation complexity is "
+            "disproportionate to the measured storage benefit; this is a PIVOT veto."
+        )
+    else:
+        complexity_position = (
+            "The project owner accepts the current reconstruction quality and treats "
+            "runtime and implementation complexity as a documented hackathon MVP "
+            "limitation, not a Phase 1B completion blocker. This does not imply that "
+            "the trade-off is efficient for every dataset."
+        )
     review_text = (
         "Human visual review is pending; use the generated review template."
         if review is None
@@ -425,6 +491,21 @@ small {{ font-weight: normal; }} details {{ margin: 1rem 0; }} summary {{ cursor
 ['Wins / losses / ties', f'{aggregate.win_count} / {aggregate.loss_count} / {aggregate.tie_count}'],
 ['Accepted / reconstructed frames', f'{aggregate.total_accepted_frames} / {aggregate.total_reconstructed_frames}'],
 ])}</section>
+<section id="mvp-limitations"><h2>Measured runtime, storage, and MVP limitations</h2>
+<p>{html.escape(complexity_position)}</p>
+{_table(['Measured item', 'Value'], [
+['Original storage', f'{aggregate.aggregate_original_bytes:,} bytes'],
+['PhotoFold representation', f'{aggregate.aggregate_photofold_bytes:,} bytes'],
+['Saved versus originals', f'{savings_vs_originals_percent:.9f}%' if savings_vs_originals_percent is not None else None],
+['Matched-WebP relational saving', f'{aggregate.weighted_mean_relational_savings_percent:.9f}%' if aggregate.weighted_mean_relational_savings_percent is not None else None],
+['Summed dataset wall time', f'{total_dataset_wall_ms:,.3f} ms ({total_dataset_wall_ms / 3_600_000:.3f} h)'],
+['PhotoFold encoding time', f'{total_photofold_encoding_ms:,.3f} ms ({total_photofold_encoding_ms / 3_600_000:.3f} h)'],
+['Matched q1–q100 sweep time', f'{total_matched_sweep_ms:,.3f} ms ({total_matched_sweep_ms / 3_600_000:.3f} h)'],
+['Package verification + reconstruction', f'{total_verification_and_reconstruction_ms:,.3f} ms'],
+['Independent WebP encodes', independent_webp_encodes],
+])}
+<p><strong>Known computational bottlenecks:</strong> the authoritative baseline performs every integer WebP quality from 1 through 100 for every native-resolution frame, then decodes each payload and calculates RGB SSIM and PSNR. PhotoFold also performs full-resolution feature alignment, warping, change-mask analysis, patch encoding, archive verification, and public-decoder reconstruction sequentially. Report generation encodes bounded previews but is excluded from the dataset timing above.</p>
+<p>The current implementation may be disproportionate to the storage benefit for some datasets—especially any recorded relational loss. Runtime, encoding efficiency, package overhead, and dataset selection require future optimization. Those are measured limitations and possible future experiment topics; they do not authorize Phase 2 work in this implementation.</p></section>
 {dataset_sections}
 </body></html>"""
     return document
@@ -592,6 +673,8 @@ def _member_role(path: str) -> str:
 
 
 def _dataset_consistency_errors(
+    dataset_output: Path,
+    package_path: Path,
     dataset_id: str,
     dataset: Phase1BDatasetResult,
     verification: dict[str, Any],
@@ -708,6 +791,39 @@ def _dataset_consistency_errors(
         )
         if matched_mismatch:
             errors.append(f"{dataset_id} frame {index} matched-control evidence differs")
+
+        expected_original_path = (
+            Path(dataset.dataset_path) / validation["frames"][index]["path"]
+        ).resolve()
+        if Path(frame["artifacts"]["original"]).resolve() != expected_original_path:
+            errors.append(f"{dataset_id} frame {index} original artifact path differs")
+        resolved_artifacts: dict[str, Path] = {}
+        for role in ("reconstruction", "heatmap", "mask", "alignment_overlay"):
+            artifact_path = (dataset_output / frame["artifacts"][role]).resolve()
+            try:
+                artifact_path.relative_to(dataset_output)
+            except ValueError:
+                errors.append(
+                    f"{dataset_id} frame {index} {role} path escapes its artifact directory"
+                )
+            resolved_artifacts[role] = artifact_path
+
+        original = load_rgb(expected_original_path)
+        decoded = decode_package_frame(package_path, index)
+        recorded_reconstruction = load_rgb(resolved_artifacts["reconstruction"])
+        recorded_heatmap = load_rgb(resolved_artifacts["heatmap"])
+        if not np.array_equal(decoded, recorded_reconstruction):
+            errors.append(
+                f"{dataset_id} frame {index} saved reconstruction differs from public decode"
+            )
+        if not np.array_equal(difference_heatmap(original, decoded), recorded_heatmap):
+            errors.append(f"{dataset_id} frame {index} saved heatmap does not recompute")
+        measured_ssim = rgb_ssim(original, decoded)
+        measured_psnr = rgb_psnr(original, decoded)
+        if not _float_matches(frame["ssim"], measured_ssim):
+            errors.append(f"{dataset_id} frame {index} PhotoFold SSIM does not recompute")
+        if not _psnr_matches(frame["psnr_db"], measured_psnr):
+            errors.append(f"{dataset_id} frame {index} PhotoFold PSNR does not recompute")
 
     errors.extend(
         _quality_summary_errors(dataset.quality["photofold"], dataset.per_frame, f"{dataset_id} PhotoFold")
@@ -872,7 +988,13 @@ def verify_phase1b_report(report: str | Path) -> dict[str, Any]:
         try:
             verification = verify_package(root / dataset_id / "moment.photofold")
             errors.extend(
-                _dataset_consistency_errors(dataset_id, dataset, verification)
+                _dataset_consistency_errors(
+                    root / dataset_id,
+                    root / dataset_id / "moment.photofold",
+                    dataset_id,
+                    dataset,
+                    verification,
+                )
             )
         except (
             FileNotFoundError,
@@ -949,6 +1071,21 @@ def review_basis_sha256(results: dict[str, dict[str, Any]], root: Path) -> str:
             "config_sha256": result["config_sha256"],
             "source_before": result["source_before"],
             "package_sha256": result["photofold_package_sha256"],
+            "storage_bytes": {
+                "original": result["original_total_bytes"],
+                "fixed_webp": result["fixed_webp"]["total_bytes"],
+                "matched_webp": (
+                    result["matched_webp"]["selected"]["total_bytes"]
+                    if result["matched_webp"]["selected"] is not None
+                    else None
+                ),
+                "photofold": result["photofold_package_bytes"],
+            },
+            "timings": result["timings"],
+            "runtime": {
+                key: result["environment"].get(key)
+                for key in ("platform", "machine", "processor", "cpu_count")
+            },
             "artifacts": artifacts,
         }
     encoded = json.dumps(evidence, separators=(",", ":"), sort_keys=True).encode()

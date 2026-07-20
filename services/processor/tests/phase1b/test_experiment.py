@@ -119,6 +119,13 @@ def test_collection_report_and_evidence_bound_review(tmp_path: Path) -> None:
     assert "Original, reconstruction, heatmap, mask, and overlay inspected." in report
     assert "lowest-SSIM frame inspected" in report
     assert "Alignment evidence" in report
+    assert "Measured runtime, storage, and MVP limitations" in report
+    assert "documented hackathon MVP limitation" in report
+    assert "Known computational bottlenecks" in report
+    assert (
+        "runtime, encoding efficiency, package overhead, and dataset selection"
+        in report.lower()
+    )
 
 
 def test_report_verifier_rejects_external_image_and_stale_review(tmp_path: Path) -> None:
@@ -146,9 +153,10 @@ def test_report_verifier_rejects_external_image_and_stale_review(tmp_path: Path)
         artifacts / "human-review-template.json",
         artifacts / "human-review.json",
     )
-    review = json.loads(review_path.read_text(encoding="utf-8"))
-    review["review_basis_sha256"] = "0" * 64
-    review_path.write_text(json.dumps(review), encoding="utf-8")
+    benchmark_path = artifacts / "static-handheld/benchmark.json"
+    benchmark = json.loads(benchmark_path.read_text(encoding="utf-8"))
+    benchmark["timings"]["dataset_wall_ms"] += 1
+    benchmark_path.write_text(json.dumps(benchmark), encoding="utf-8")
     with pytest.raises(Phase1BReviewError, match="stale"):
         finalize_human_review(artifacts, review_path)
 
