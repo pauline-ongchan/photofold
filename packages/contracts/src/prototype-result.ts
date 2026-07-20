@@ -7,6 +7,7 @@ export type FrameIndices = number[];
 export type Message = string;
 export type Retryable = boolean;
 export type Stage = string;
+export type FallbackFrameCount = number;
 /**
  * @minItems 5
  * @maxItems 20
@@ -242,6 +243,7 @@ export type Difference = string | null;
 export type Original = string;
 export type Reconstruction = string | null;
 export type ChangedRegionPercent = number | null;
+export type FallbackReason = string | null;
 export type Height = number;
 export type Index = number;
 export type OriginalBytes = number;
@@ -251,9 +253,11 @@ export type QualityThresholdPass = boolean | null;
 export type Reconstructed = boolean;
 export type SharedRegionPercent = number | null;
 export type Ssim = number | null;
+export type StorageMode = "shared_reference" | "shared_delta" | "independent_source";
 export type Width = number;
 export type PackageArtifact = string | null;
 export type FrameCount = number;
+export type IndependentSourceCount = number;
 export type MaskCount = number;
 export type MemberCount = number;
 export type MemberPayloadBytes = number;
@@ -266,7 +270,8 @@ export type MinimumSsim = number;
 export type ThresholdPass = boolean;
 export type ReconstructedFrameCount = number;
 export type ReferenceFrameIndex = number | null;
-export type SchemaVersion = "1.0";
+export type SchemaVersion = "1.1";
+export type SharedFrameCount = number;
 export type Status = "complete" | "complete_no_savings" | "failed_quality" | "failed";
 export type ByteDelta = number;
 export type BytesSaved = number;
@@ -276,11 +281,13 @@ export type PackageSha256 = string;
 export type PackageTotalBytes = number;
 export type PercentChange = number;
 export type PercentSaved = number;
+export type Strategy = "shared_scene" | "hybrid" | "independent_only";
 export type Warnings = string[];
 
 export interface PrototypeResult {
   completed_at: CompletedAt;
   error?: PrototypeError | null;
+  fallback_frame_count: FallbackFrameCount;
   frames: Frames;
   package_artifact: PackageArtifact;
   package_contents: PackageContents | null;
@@ -288,8 +295,10 @@ export interface PrototypeResult {
   reconstructed_frame_count: ReconstructedFrameCount;
   reference_frame_index: ReferenceFrameIndex;
   schema_version?: SchemaVersion;
+  shared_frame_count: SharedFrameCount;
   status: Status;
   storage: StorageResult | null;
+  strategy: Strategy;
   warnings: Warnings;
 }
 export interface PrototypeError {
@@ -303,6 +312,7 @@ export interface PrototypeError {
 export interface PrototypeFrameResult {
   artifacts: FrameArtifacts;
   changed_region_percent?: ChangedRegionPercent;
+  fallback_reason?: FallbackReason;
   height: Height;
   index: Index;
   original_bytes: OriginalBytes;
@@ -312,6 +322,7 @@ export interface PrototypeFrameResult {
   reconstructed: Reconstructed;
   shared_region_percent?: SharedRegionPercent;
   ssim?: Ssim;
+  storage_mode: StorageMode;
   width: Width;
 }
 export interface FrameArtifacts {
@@ -321,6 +332,7 @@ export interface FrameArtifacts {
 }
 export interface PackageContents {
   frame_count: FrameCount;
+  independent_source_count: IndependentSourceCount;
   mask_count: MaskCount;
   member_count: MemberCount;
   member_payload_bytes: MemberPayloadBytes;

@@ -8,6 +8,7 @@ const openapi = join(directory, "openapi.json");
 const generated = join(directory, "generated.ts");
 const phase1bSchemas = join(directory, "phase1b-schemas");
 const prototypeSchemas = join(directory, "prototype-schemas");
+const photofoldSchema = join(directory, "photofold-manifest.schema.json");
 
 try {
   const python = spawnSync(
@@ -43,14 +44,29 @@ try {
   );
   if (prototype.status !== 0) process.exit(prototype.status ?? 1);
 
+  const photofold = spawnSync(
+    ".venv/bin/python",
+    [
+      "-m",
+      "photofold.cli",
+      "export-photofold-schema",
+      "--output",
+      photofoldSchema,
+    ],
+    { stdio: "inherit" },
+  );
+  if (photofold.status !== 0) process.exit(photofold.status ?? 1);
+
   const prototypeTypes = [];
-  for (const name of ["prototype-analysis", "prototype-result", "prototype-error"]) {
+  for (const name of ["prototype-analysis", "prototype-result", "prototype-error", "photofold-manifest"]) {
     const output = join(directory, `${name}.ts`);
     const types = spawnSync(
       "node_modules/.bin/json2ts",
       [
         "--input",
-        join(prototypeSchemas, `${name}.schema.json`),
+        name === "photofold-manifest"
+          ? photofoldSchema
+          : join(prototypeSchemas, `${name}.schema.json`),
         "--output",
         output,
         "--bannerComment",
@@ -98,6 +114,7 @@ try {
       `packages/contracts/${name}.schema.json`,
     ]),
     ...prototypeTypes,
+    [photofoldSchema, "packages/contracts/photofold-manifest.schema.json"],
   ];
 
   const stale = comparisons.filter(

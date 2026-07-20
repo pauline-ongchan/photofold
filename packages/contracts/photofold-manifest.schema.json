@@ -1,138 +1,448 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://photofold.local/schemas/photofold-manifest-0.1.json",
-  "title": "PhotoFold Manifest 0.1",
-  "type": "object",
+  "$defs": {
+    "AssetRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "exclusiveMinimum": 0,
+          "title": "Bytes",
+          "type": "integer"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "bytes",
+        "sha256"
+      ],
+      "title": "AssetRecord",
+      "type": "object"
+    },
+    "BaseRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "encoding": {
+          "const": "webp",
+          "default": "webp",
+          "title": "Encoding",
+          "type": "string"
+        },
+        "height": {
+          "exclusiveMinimum": 0,
+          "title": "Height",
+          "type": "integer"
+        },
+        "path": {
+          "const": "base.webp",
+          "default": "base.webp",
+          "title": "Path",
+          "type": "string"
+        },
+        "quality": {
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Quality",
+          "type": "integer"
+        },
+        "width": {
+          "exclusiveMinimum": 0,
+          "title": "Width",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "width",
+        "height",
+        "quality"
+      ],
+      "title": "BaseRecord",
+      "type": "object"
+    },
+    "FrameRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "independent_source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IndependentSourceRecord"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "index": {
+          "minimum": 0,
+          "title": "Index",
+          "type": "integer"
+        },
+        "normalized_dimensions": {
+          "$ref": "#/$defs/NormalizedDimensions"
+        },
+        "original_filename": {
+          "minLength": 1,
+          "title": "Original Filename",
+          "type": "string"
+        },
+        "output_height": {
+          "exclusiveMinimum": 0,
+          "title": "Output Height",
+          "type": "integer"
+        },
+        "output_width": {
+          "exclusiveMinimum": 0,
+          "title": "Output Width",
+          "type": "integer"
+        },
+        "patches": {
+          "items": {
+            "$ref": "#/$defs/PatchRecord"
+          },
+          "title": "Patches",
+          "type": "array"
+        },
+        "storage_mode": {
+          "enum": [
+            "shared_reference",
+            "shared_delta",
+            "independent_source"
+          ],
+          "title": "Storage Mode",
+          "type": "string"
+        },
+        "transform": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TransformRecord"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "index",
+        "original_filename",
+        "output_width",
+        "output_height",
+        "normalized_dimensions",
+        "storage_mode",
+        "transform",
+        "patches"
+      ],
+      "title": "FrameRecord",
+      "type": "object"
+    },
+    "IndependentSourceRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "decoded_format": {
+          "enum": [
+            "JPEG",
+            "PNG",
+            "WEBP"
+          ],
+          "title": "Decoded Format",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "decoded_format"
+      ],
+      "title": "IndependentSourceRecord",
+      "type": "object"
+    },
+    "NormalizedDimensions": {
+      "additionalProperties": false,
+      "properties": {
+        "height": {
+          "exclusiveMinimum": 0,
+          "title": "Height",
+          "type": "integer"
+        },
+        "width": {
+          "exclusiveMinimum": 0,
+          "title": "Width",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "width",
+        "height"
+      ],
+      "title": "NormalizedDimensions",
+      "type": "object"
+    },
+    "PatchRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "bbox": {
+          "items": {
+            "type": "integer"
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "title": "Bbox",
+          "type": "array"
+        },
+        "feather_radius": {
+          "default": 0,
+          "maximum": 64,
+          "minimum": 0,
+          "title": "Feather Radius",
+          "type": "integer"
+        },
+        "image_path": {
+          "title": "Image Path",
+          "type": "string"
+        },
+        "mask_path": {
+          "title": "Mask Path",
+          "type": "string"
+        },
+        "residual_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Residual Path"
+        }
+      },
+      "required": [
+        "bbox",
+        "image_path",
+        "mask_path"
+      ],
+      "title": "PatchRecord",
+      "type": "object"
+    },
+    "TransformRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "border_mode": {
+          "const": "constant",
+          "default": "constant",
+          "title": "Border Mode",
+          "type": "string"
+        },
+        "inlier_count": {
+          "minimum": 0,
+          "title": "Inlier Count",
+          "type": "integer"
+        },
+        "inlier_ratio": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Inlier Ratio",
+          "type": "number"
+        },
+        "interpolation": {
+          "const": "linear",
+          "default": "linear",
+          "title": "Interpolation",
+          "type": "string"
+        },
+        "median_reprojection_error": {
+          "minimum": 0,
+          "title": "Median Reprojection Error",
+          "type": "number"
+        },
+        "reference_to_target": {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 9,
+          "minItems": 9,
+          "title": "Reference To Target",
+          "type": "array"
+        },
+        "reprojection_error_threshold": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reprojection Error Threshold"
+        },
+        "reprojection_error_units": {
+          "enum": [
+            "analysis_pixels",
+            "legacy_full_resolution_pixels"
+          ],
+          "title": "Reprojection Error Units",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "identity",
+            "affine",
+            "homography"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "valid_overlap": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Valid Overlap",
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "reference_to_target",
+        "inlier_count",
+        "inlier_ratio",
+        "median_reprojection_error",
+        "reprojection_error_units",
+        "valid_overlap"
+      ],
+      "title": "TransformRecord",
+      "type": "object"
+    }
+  },
   "additionalProperties": false,
+  "properties": {
+    "analysis_path": {
+      "title": "Analysis Path",
+      "type": "string"
+    },
+    "assets": {
+      "items": {
+        "$ref": "#/$defs/AssetRecord"
+      },
+      "title": "Assets",
+      "type": "array"
+    },
+    "base": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BaseRecord"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "fallback_frame_count": {
+      "maximum": 20,
+      "minimum": 0,
+      "title": "Fallback Frame Count",
+      "type": "integer"
+    },
+    "format": {
+      "const": "photofold",
+      "default": "photofold",
+      "title": "Format",
+      "type": "string"
+    },
+    "frames": {
+      "items": {
+        "$ref": "#/$defs/FrameRecord"
+      },
+      "maxItems": 20,
+      "minItems": 5,
+      "title": "Frames",
+      "type": "array"
+    },
+    "metrics_path": {
+      "title": "Metrics Path",
+      "type": "string"
+    },
+    "reference_frame_index": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reference Frame Index"
+    },
+    "required_codecs": {
+      "items": {
+        "enum": [
+          "jpeg",
+          "webp",
+          "png"
+        ],
+        "type": "string"
+      },
+      "title": "Required Codecs",
+      "type": "array"
+    },
+    "semantic_analysis_path": {
+      "default": null,
+      "title": "Semantic Analysis Path",
+      "type": "null"
+    },
+    "shared_frame_count": {
+      "maximum": 20,
+      "minimum": 0,
+      "title": "Shared Frame Count",
+      "type": "integer"
+    },
+    "strategy": {
+      "enum": [
+        "shared_scene",
+        "hybrid",
+        "independent_only"
+      ],
+      "title": "Strategy",
+      "type": "string"
+    },
+    "version": {
+      "const": "0.2",
+      "default": "0.2",
+      "title": "Version",
+      "type": "string"
+    }
+  },
   "required": [
-    "format",
-    "version",
     "created_at",
-    "reference_frame_index",
+    "strategy",
+    "shared_frame_count",
+    "fallback_frame_count",
     "required_codecs",
     "base",
     "frames",
     "assets",
     "analysis_path",
-    "metrics_path",
-    "semantic_analysis_path"
+    "metrics_path"
   ],
-  "properties": {
-    "format": { "const": "photofold" },
-    "version": { "const": "0.1" },
-    "created_at": { "type": "string", "format": "date-time" },
-    "reference_frame_index": { "type": "integer", "minimum": 0 },
-    "required_codecs": {
-      "type": "array",
-      "items": { "enum": ["webp", "png"] },
-      "uniqueItems": true
-    },
-    "base": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["path", "width", "height", "encoding", "quality"],
-      "properties": {
-        "path": { "const": "base.webp" },
-        "width": { "type": "integer", "minimum": 1 },
-        "height": { "type": "integer", "minimum": 1 },
-        "encoding": { "const": "webp" },
-        "quality": { "type": "integer", "minimum": 1, "maximum": 100 }
-      }
-    },
-    "frames": {
-      "type": "array",
-      "minItems": 5,
-      "maxItems": 20,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "index",
-          "original_filename",
-          "output_width",
-          "output_height",
-          "transform",
-          "patches"
-        ],
-        "properties": {
-          "index": { "type": "integer", "minimum": 0 },
-          "original_filename": { "type": "string", "minLength": 1 },
-          "output_width": { "type": "integer", "minimum": 1 },
-          "output_height": { "type": "integer", "minimum": 1 },
-          "transform": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "type",
-              "reference_to_target",
-              "interpolation",
-              "border_mode",
-              "inlier_count",
-              "inlier_ratio",
-              "median_reprojection_error",
-              "valid_overlap"
-            ],
-            "properties": {
-              "type": { "enum": ["identity", "affine", "homography"] },
-              "reference_to_target": {
-                "type": "array",
-                "minItems": 9,
-                "maxItems": 9,
-                "items": { "type": "number" }
-              },
-              "interpolation": { "const": "linear" },
-              "border_mode": { "const": "constant" },
-              "inlier_count": { "type": "integer", "minimum": 0 },
-              "inlier_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
-              "median_reprojection_error": { "type": "number", "minimum": 0 },
-              "valid_overlap": { "type": "number", "minimum": 0, "maximum": 1 }
-            }
-          },
-          "patches": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["bbox", "image_path", "mask_path", "feather_radius", "residual_path"],
-              "properties": {
-                "bbox": {
-                  "type": "array",
-                  "minItems": 4,
-                  "maxItems": 4,
-                  "prefixItems": [
-                    { "type": "integer", "minimum": 0 },
-                    { "type": "integer", "minimum": 0 },
-                    { "type": "integer", "minimum": 1 },
-                    { "type": "integer", "minimum": 1 }
-                  ],
-                  "items": false
-                },
-                "image_path": { "type": "string", "minLength": 1 },
-                "mask_path": { "type": "string", "minLength": 1 },
-                "feather_radius": { "type": "integer", "minimum": 0, "maximum": 64 },
-                "residual_path": { "type": ["string", "null"] }
-              }
-            }
-          }
-        }
-      }
-    },
-    "assets": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["path", "bytes", "sha256"],
-        "properties": {
-          "path": { "type": "string", "minLength": 1 },
-          "bytes": { "type": "integer", "minimum": 1 },
-          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
-        }
-      }
-    },
-    "analysis_path": { "const": "metadata/analysis.json" },
-    "metrics_path": { "const": "metadata/metrics.json" },
-    "semantic_analysis_path": { "type": "null" }
-  }
+  "title": "PhotoFoldManifest",
+  "type": "object"
 }

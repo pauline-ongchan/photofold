@@ -79,46 +79,115 @@ class ReferenceCandidate(PrototypeModel):
 
 class AlignmentRecord(PrototypeModel):
     frame_index: int = Field(ge=0)
-    type: Literal["identity", "affine", "homography"]
-    reference_to_target: list[float] = Field(min_length=9, max_length=9)
-    inlier_count: int = Field(ge=0)
-    match_count: int = Field(ge=0)
-    inlier_ratio: float = Field(ge=0, le=1)
-    median_reprojection_error: float = Field(ge=0)
-    valid_overlap: float = Field(ge=0, le=1)
+    decision: Literal["shared", "fallback"]
+    type: Literal["identity", "affine", "homography"] | None
+    reference_to_target: list[float] | None = Field(default=None, min_length=9, max_length=9)
+    inlier_count: int | None = Field(default=None, ge=0)
+    match_count: int | None = Field(default=None, ge=0)
+    inlier_ratio: float | None = Field(default=None, ge=0, le=1)
+    median_reprojection_error: float | None = Field(default=None, ge=0)
+    reprojection_error_units: Literal["analysis_pixels"] = "analysis_pixels"
+    valid_overlap: float | None = Field(default=None, ge=0, le=1)
+    fallback_reason: str | None = None
 
     @field_validator("reference_to_target")
     @classmethod
-    def finite_matrix(cls, value: list[float]) -> list[float]:
+    def finite_matrix(cls, value: list[float] | None) -> list[float] | None:
+        if value is None:
+            return value
         if not all(math.isfinite(item) for item in value):
             raise ValueError("Alignment matrix contains a non-finite value")
         return value
 
+    @model_validator(mode="after")
+    def evidence_matches_decision(self) -> AlignmentRecord:
+        if self.type is None and self.reference_to_target is not None:
+            raise ValueError("Alignment without a transform type cannot contain a matrix")
+        if self.type is not None and self.reference_to_target is None:
+            raise ValueError("Measured alignment requires a transform matrix")
+        if self.decision == "shared" and self.type is None:
+            raise ValueError("Shared alignment requires measured transform evidence")
+        if self.decision == "fallback" and not self.fallback_reason:
+            raise ValueError("Fallback alignment requires an explicit reason")
+        return self
+
+
+class AlignmentMeasurement(PrototypeModel):
+    units: Literal["analysis_pixels"] = "analysis_pixels"
+    analysis_max_dimension: int = Field(gt=0)
+    max_median_reprojection_error: float = Field(gt=0)
+    min_inlier_ratio: float = Field(ge=0, le=1)
+    description: str = Field(min_length=1)
+
+
+class FrameDisposition(PrototypeModel):
+    frame_index: int = Field(ge=0, le=19)
+    storage_mode: Literal["shared_reference", "shared_delta", "independent_source"]
+    fallback_reason: str | None = None
+
+    @model_validator(mode="after")
+    def fallback_has_reason(self) -> FrameDisposition:
+        if self.storage_mode == "independent_source" and not self.fallback_reason:
+            raise ValueError("Independent fallback requires a reason")
+        if self.storage_mode != "independent_source" and self.fallback_reason is not None:
+            raise ValueError("Shared frames cannot contain a fallback reason")
+        return self
+
 
 class PrototypeAnalysis(PrototypeModel):
-    schema_version: Literal["1.0"] = "1.0"
+    schema_version: Literal["1.1"] = "1.1"
     analyzed_at: datetime
-    status: Literal["analyzed_foldable", "analyzed_rejected"]
-    suitability: Literal["safe_to_fold", "not_foldable"]
+    status: Literal["analyzed_foldable"] = "analyzed_foldable"
+    suitability: Literal["safe_to_fold", "foldable_with_reduced_savings"]
+    strategy: Literal["shared_scene", "hybrid", "independent_only"]
     reasons: list[str]
     source_frames: list[SourceSnapshot] = Field(min_length=5, max_length=20)
     original_total_bytes: int = Field(gt=0)
-    normalized_dimensions: Dimensions
+    normalized_dimensions: Dimensions | None
+    shared_frame_count: int = Field(ge=0, le=20)
+    fallback_frame_count: int = Field(ge=0, le=20)
+    frame_dispositions: list[FrameDisposition] = Field(min_length=5, max_length=20)
     reference_frame_index: int | None
     reference_score: float | None
     reference_candidates: list[ReferenceCandidate]
     alignment: list[AlignmentRecord]
+    alignment_measurement: AlignmentMeasurement
     config_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     warnings: list[str]
     deferred_fields: list[str]
 
     @model_validator(mode="after")
     def consistent_analysis(self) -> PrototypeAnalysis:
-        if self.status == "analyzed_foldable":
-            if self.suitability != "safe_to_fold" or self.reference_frame_index is None:
-                raise ValueError("Foldable analysis requires a safe suitability and reference")
-            if len(self.alignment) != len(self.source_frames):
-                raise ValueError("Foldable analysis requires one transform per frame")
+        frame_count = len(self.source_frames)
+        if len(self.alignment) != frame_count or len(self.frame_dispositions) != frame_count:
+            raise ValueError("Analysis requires alignment and storage evidence for every frame")
+        indices = list(range(frame_count))
+        if [item.frame_index for item in self.alignment] != indices or [
+            item.frame_index for item in self.frame_dispositions
+        ] != indices:
+            raise ValueError("Analysis evidence must preserve source order")
+        shared = [
+            item for item in self.frame_dispositions if item.storage_mode != "independent_source"
+        ]
+        fallback = [
+            item for item in self.frame_dispositions if item.storage_mode == "independent_source"
+        ]
+        if self.shared_frame_count != len(shared) or self.fallback_frame_count != len(fallback):
+            raise ValueError("Analysis strategy counts disagree with frame dispositions")
+        if self.strategy == "independent_only":
+            if shared or self.reference_frame_index is not None:
+                raise ValueError("Independent-only analysis cannot select a shared reference")
+        else:
+            references = [item for item in shared if item.storage_mode == "shared_reference"]
+            if len(shared) < 2 or len(references) != 1:
+                raise ValueError("Shared analysis requires one reference and at least one delta")
+            if references[0].frame_index != self.reference_frame_index:
+                raise ValueError("Reference index disagrees with the storage disposition")
+        expected_suitability = (
+            "safe_to_fold" if self.strategy == "shared_scene" else "foldable_with_reduced_savings"
+        )
+        if self.suitability != expected_suitability:
+            raise ValueError("Suitability does not match the selected strategy")
         return self
 
 
@@ -147,6 +216,8 @@ class PrototypeFrameResult(PrototypeModel):
     width: int = Field(gt=0)
     height: int = Field(gt=0)
     original_bytes: int = Field(gt=0)
+    storage_mode: Literal["shared_reference", "shared_delta", "independent_source"]
+    fallback_reason: str | None = None
     reconstructed: bool
     ssim: float | None = Field(default=None, ge=-1, le=1)
     quality_threshold_pass: bool | None = None
@@ -181,13 +252,17 @@ class PackageContents(PrototypeModel):
     patch_count: int = Field(ge=0)
     mask_count: int = Field(ge=0)
     metadata_count: int = Field(ge=0)
+    independent_source_count: int = Field(ge=0, le=20)
     member_payload_bytes: int = Field(gt=0)
 
 
 class PrototypeResult(PrototypeModel):
-    schema_version: Literal["1.0"] = "1.0"
+    schema_version: Literal["1.1"] = "1.1"
     completed_at: datetime
     status: Literal["complete", "complete_no_savings", "failed_quality", "failed"]
+    strategy: Literal["shared_scene", "hybrid", "independent_only"]
+    shared_frame_count: int = Field(ge=0, le=20)
+    fallback_frame_count: int = Field(ge=0, le=20)
     reference_frame_index: int | None
     reconstructed_frame_count: int = Field(ge=0, le=20)
     storage: StorageResult | None

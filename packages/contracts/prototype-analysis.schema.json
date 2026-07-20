@@ -1,68 +1,184 @@
 {
   "$defs": {
+    "AlignmentMeasurement": {
+      "additionalProperties": false,
+      "properties": {
+        "analysis_max_dimension": {
+          "exclusiveMinimum": 0,
+          "title": "Analysis Max Dimension",
+          "type": "integer"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "max_median_reprojection_error": {
+          "exclusiveMinimum": 0,
+          "title": "Max Median Reprojection Error",
+          "type": "number"
+        },
+        "min_inlier_ratio": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Min Inlier Ratio",
+          "type": "number"
+        },
+        "units": {
+          "const": "analysis_pixels",
+          "default": "analysis_pixels",
+          "title": "Units",
+          "type": "string"
+        }
+      },
+      "required": [
+        "analysis_max_dimension",
+        "max_median_reprojection_error",
+        "min_inlier_ratio",
+        "description"
+      ],
+      "title": "AlignmentMeasurement",
+      "type": "object"
+    },
     "AlignmentRecord": {
       "additionalProperties": false,
       "properties": {
+        "decision": {
+          "enum": [
+            "shared",
+            "fallback"
+          ],
+          "title": "Decision",
+          "type": "string"
+        },
+        "fallback_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fallback Reason"
+        },
         "frame_index": {
           "minimum": 0,
           "title": "Frame Index",
           "type": "integer"
         },
         "inlier_count": {
-          "minimum": 0,
-          "title": "Inlier Count",
-          "type": "integer"
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Inlier Count"
         },
         "inlier_ratio": {
-          "maximum": 1,
-          "minimum": 0,
-          "title": "Inlier Ratio",
-          "type": "number"
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Inlier Ratio"
         },
         "match_count": {
-          "minimum": 0,
-          "title": "Match Count",
-          "type": "integer"
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Match Count"
         },
         "median_reprojection_error": {
-          "minimum": 0,
-          "title": "Median Reprojection Error",
-          "type": "number"
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Median Reprojection Error"
         },
         "reference_to_target": {
-          "items": {
-            "type": "number"
-          },
-          "maxItems": 9,
-          "minItems": 9,
-          "title": "Reference To Target",
-          "type": "array"
-        },
-        "type": {
-          "enum": [
-            "identity",
-            "affine",
-            "homography"
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "maxItems": 9,
+              "minItems": 9,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
           ],
-          "title": "Type",
+          "default": null,
+          "title": "Reference To Target"
+        },
+        "reprojection_error_units": {
+          "const": "analysis_pixels",
+          "default": "analysis_pixels",
+          "title": "Reprojection Error Units",
           "type": "string"
         },
+        "type": {
+          "anyOf": [
+            {
+              "enum": [
+                "identity",
+                "affine",
+                "homography"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Type"
+        },
         "valid_overlap": {
-          "maximum": 1,
-          "minimum": 0,
-          "title": "Valid Overlap",
-          "type": "number"
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Valid Overlap"
         }
       },
       "required": [
         "frame_index",
-        "type",
-        "reference_to_target",
-        "inlier_count",
-        "match_count",
-        "inlier_ratio",
-        "median_reprojection_error",
-        "valid_overlap"
+        "decision",
+        "type"
       ],
       "title": "AlignmentRecord",
       "type": "object"
@@ -86,6 +202,44 @@
         "height"
       ],
       "title": "Dimensions",
+      "type": "object"
+    },
+    "FrameDisposition": {
+      "additionalProperties": false,
+      "properties": {
+        "fallback_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fallback Reason"
+        },
+        "frame_index": {
+          "maximum": 19,
+          "minimum": 0,
+          "title": "Frame Index",
+          "type": "integer"
+        },
+        "storage_mode": {
+          "enum": [
+            "shared_reference",
+            "shared_delta",
+            "independent_source"
+          ],
+          "title": "Storage Mode",
+          "type": "string"
+        }
+      },
+      "required": [
+        "frame_index",
+        "storage_mode"
+      ],
+      "title": "FrameDisposition",
       "type": "object"
     },
     "ReferenceCandidate": {
@@ -259,6 +413,9 @@
       "title": "Alignment",
       "type": "array"
     },
+    "alignment_measurement": {
+      "$ref": "#/$defs/AlignmentMeasurement"
+    },
     "analyzed_at": {
       "format": "date-time",
       "title": "Analyzed At",
@@ -276,8 +433,30 @@
       "title": "Deferred Fields",
       "type": "array"
     },
+    "fallback_frame_count": {
+      "maximum": 20,
+      "minimum": 0,
+      "title": "Fallback Frame Count",
+      "type": "integer"
+    },
+    "frame_dispositions": {
+      "items": {
+        "$ref": "#/$defs/FrameDisposition"
+      },
+      "maxItems": 20,
+      "minItems": 5,
+      "title": "Frame Dispositions",
+      "type": "array"
+    },
     "normalized_dimensions": {
-      "$ref": "#/$defs/Dimensions"
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Dimensions"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "original_total_bytes": {
       "exclusiveMinimum": 0,
@@ -321,10 +500,16 @@
       "title": "Reference Score"
     },
     "schema_version": {
-      "const": "1.0",
-      "default": "1.0",
+      "const": "1.1",
+      "default": "1.1",
       "title": "Schema Version",
       "type": "string"
+    },
+    "shared_frame_count": {
+      "maximum": 20,
+      "minimum": 0,
+      "title": "Shared Frame Count",
+      "type": "integer"
     },
     "source_frames": {
       "items": {
@@ -336,17 +521,24 @@
       "type": "array"
     },
     "status": {
-      "enum": [
-        "analyzed_foldable",
-        "analyzed_rejected"
-      ],
+      "const": "analyzed_foldable",
+      "default": "analyzed_foldable",
       "title": "Status",
+      "type": "string"
+    },
+    "strategy": {
+      "enum": [
+        "shared_scene",
+        "hybrid",
+        "independent_only"
+      ],
+      "title": "Strategy",
       "type": "string"
     },
     "suitability": {
       "enum": [
         "safe_to_fold",
-        "not_foldable"
+        "foldable_with_reduced_savings"
       ],
       "title": "Suitability",
       "type": "string"
@@ -361,16 +553,20 @@
   },
   "required": [
     "analyzed_at",
-    "status",
     "suitability",
+    "strategy",
     "reasons",
     "source_frames",
     "original_total_bytes",
     "normalized_dimensions",
+    "shared_frame_count",
+    "fallback_frame_count",
+    "frame_dispositions",
     "reference_frame_index",
     "reference_score",
     "reference_candidates",
     "alignment",
+    "alignment_measurement",
     "config_sha256",
     "warnings",
     "deferred_fields"

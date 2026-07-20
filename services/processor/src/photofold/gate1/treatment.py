@@ -48,6 +48,10 @@ def build_treatment_package(
     parameters: dict[str, int],
     original_total_bytes: int,
     output_path: Path,
+    storage_dispositions: list[dict[str, Any]] | None = None,
+    source_payloads: list[bytes | None] | None = None,
+    source_formats: list[str | None] | None = None,
+    alignment_error_threshold: float | None = None,
 ) -> dict[str, Any]:
     return build_package(
         images=images,
@@ -58,6 +62,10 @@ def build_treatment_package(
         analysis={key: value for key, value in alignment.items() if key != "transforms"},
         original_total_bytes=original_total_bytes,
         output_path=output_path,
+        storage_dispositions=storage_dispositions,
+        source_payloads=source_payloads,
+        source_formats=source_formats,
+        alignment_error_threshold=alignment_error_threshold,
     )
 
 
