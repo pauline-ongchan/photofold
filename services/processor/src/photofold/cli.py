@@ -16,6 +16,7 @@ from photofold.gate1.bundle import (
     verify_package,
 )
 from photofold.gate1.report import verify_report
+from photofold.phase1b.datasets import validate_phase1b_collection
 
 
 def _write_json(payload: dict[str, Any], output: str | None) -> None:
@@ -46,6 +47,12 @@ def _validate_dataset(args: argparse.Namespace) -> int:
         return 1
     _write_json(result, args.output)
     return 0
+
+
+def _validate_phase1b_datasets(args: argparse.Namespace) -> int:
+    result = validate_phase1b_collection(args.root)
+    _write_json(result, args.output)
+    return 0 if result["status"] == "pass" else 1
 
 
 def _export_openapi(args: argparse.Namespace) -> int:
@@ -144,6 +151,14 @@ def build_parser() -> argparse.ArgumentParser:
     dataset.add_argument("dataset", help="Path to the curated dataset directory")
     dataset.add_argument("--output", help="Also write the JSON result to this file")
     dataset.set_defaults(handler=_validate_dataset)
+
+    phase1b_datasets = commands.add_parser(
+        "validate-phase1b-datasets",
+        help="Verify the complete canonical Phase 1B dataset collection",
+    )
+    phase1b_datasets.add_argument("root", help="Canonical Phase 1B dataset root")
+    phase1b_datasets.add_argument("--output", help="Also write the JSON result to this file")
+    phase1b_datasets.set_defaults(handler=_validate_phase1b_datasets)
 
     openapi = commands.add_parser(
         "export-openapi",

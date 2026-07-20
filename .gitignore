@@ -16,3 +16,15 @@ artifacts/**
 !artifacts/.gitkeep
 coverage/
 *.log
+
+# Phase 1B source photos stay local because the owner-supplied files retain
+# private EXIF/GPS metadata. Manifests and placement documentation are tracked.
+data/phase 1/
+data/real-bursts/**/*.jpg
+data/real-bursts/**/*.JPG
+data/real-bursts/**/*.jpeg
+data/real-bursts/**/*.JPEG
+data/real-bursts/**/*.png
+data/real-bursts/**/*.PNG
+data/real-bursts/**/*.webp
+data/real-bursts/**/*.WEBP
