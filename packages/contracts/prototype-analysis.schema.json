@@ -1,0 +1,380 @@
+{
+  "$defs": {
+    "AlignmentRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "frame_index": {
+          "minimum": 0,
+          "title": "Frame Index",
+          "type": "integer"
+        },
+        "inlier_count": {
+          "minimum": 0,
+          "title": "Inlier Count",
+          "type": "integer"
+        },
+        "inlier_ratio": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Inlier Ratio",
+          "type": "number"
+        },
+        "match_count": {
+          "minimum": 0,
+          "title": "Match Count",
+          "type": "integer"
+        },
+        "median_reprojection_error": {
+          "minimum": 0,
+          "title": "Median Reprojection Error",
+          "type": "number"
+        },
+        "reference_to_target": {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 9,
+          "minItems": 9,
+          "title": "Reference To Target",
+          "type": "array"
+        },
+        "type": {
+          "enum": [
+            "identity",
+            "affine",
+            "homography"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "valid_overlap": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Valid Overlap",
+          "type": "number"
+        }
+      },
+      "required": [
+        "frame_index",
+        "type",
+        "reference_to_target",
+        "inlier_count",
+        "match_count",
+        "inlier_ratio",
+        "median_reprojection_error",
+        "valid_overlap"
+      ],
+      "title": "AlignmentRecord",
+      "type": "object"
+    },
+    "Dimensions": {
+      "additionalProperties": false,
+      "properties": {
+        "height": {
+          "exclusiveMinimum": 0,
+          "title": "Height",
+          "type": "integer"
+        },
+        "width": {
+          "exclusiveMinimum": 0,
+          "title": "Width",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "width",
+        "height"
+      ],
+      "title": "Dimensions",
+      "type": "object"
+    },
+    "ReferenceCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "alignment_failure_indices": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Alignment Failure Indices",
+          "type": "array"
+        },
+        "alignment_success_count": {
+          "minimum": 0,
+          "title": "Alignment Success Count",
+          "type": "integer"
+        },
+        "clipped_pixel_fraction": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Clipped Pixel Fraction",
+          "type": "number"
+        },
+        "index": {
+          "minimum": 0,
+          "title": "Index",
+          "type": "integer"
+        },
+        "mean_inlier_ratio": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Mean Inlier Ratio",
+          "type": "number"
+        },
+        "mean_valid_overlap": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Mean Valid Overlap",
+          "type": "number"
+        },
+        "score": {
+          "title": "Score",
+          "type": "number"
+        },
+        "sharpness": {
+          "minimum": 0,
+          "title": "Sharpness",
+          "type": "number"
+        },
+        "sharpness_score": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Sharpness Score",
+          "type": "number"
+        }
+      },
+      "required": [
+        "index",
+        "score",
+        "mean_inlier_ratio",
+        "mean_valid_overlap",
+        "sharpness",
+        "sharpness_score",
+        "clipped_pixel_fraction",
+        "alignment_success_count",
+        "alignment_failure_indices"
+      ],
+      "title": "ReferenceCandidate",
+      "type": "object"
+    },
+    "SourceSnapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "exclusiveMinimum": 0,
+          "title": "Bytes",
+          "type": "integer"
+        },
+        "decoded_format": {
+          "enum": [
+            "JPEG",
+            "PNG",
+            "WEBP"
+          ],
+          "title": "Decoded Format",
+          "type": "string"
+        },
+        "disposition": {
+          "const": "accepted",
+          "default": "accepted",
+          "title": "Disposition",
+          "type": "string"
+        },
+        "height": {
+          "exclusiveMinimum": 0,
+          "title": "Height",
+          "type": "integer"
+        },
+        "index": {
+          "maximum": 19,
+          "minimum": 0,
+          "title": "Index",
+          "type": "integer"
+        },
+        "mime_type": {
+          "enum": [
+            "image/jpeg",
+            "image/png",
+            "image/webp"
+          ],
+          "title": "Mime Type",
+          "type": "string"
+        },
+        "mode": {
+          "title": "Mode",
+          "type": "string"
+        },
+        "original_artifact": {
+          "title": "Original Artifact",
+          "type": "string"
+        },
+        "original_filename": {
+          "title": "Original Filename",
+          "type": "string"
+        },
+        "reasons": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Reasons",
+          "type": "array"
+        },
+        "sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "stored_filename": {
+          "title": "Stored Filename",
+          "type": "string"
+        },
+        "width": {
+          "exclusiveMinimum": 0,
+          "title": "Width",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "index",
+        "original_filename",
+        "stored_filename",
+        "decoded_format",
+        "mime_type",
+        "mode",
+        "bytes",
+        "sha256",
+        "width",
+        "height",
+        "original_artifact"
+      ],
+      "title": "SourceSnapshot",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "alignment": {
+      "items": {
+        "$ref": "#/$defs/AlignmentRecord"
+      },
+      "title": "Alignment",
+      "type": "array"
+    },
+    "analyzed_at": {
+      "format": "date-time",
+      "title": "Analyzed At",
+      "type": "string"
+    },
+    "config_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Config Sha256",
+      "type": "string"
+    },
+    "deferred_fields": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Deferred Fields",
+      "type": "array"
+    },
+    "normalized_dimensions": {
+      "$ref": "#/$defs/Dimensions"
+    },
+    "original_total_bytes": {
+      "exclusiveMinimum": 0,
+      "title": "Original Total Bytes",
+      "type": "integer"
+    },
+    "reasons": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Reasons",
+      "type": "array"
+    },
+    "reference_candidates": {
+      "items": {
+        "$ref": "#/$defs/ReferenceCandidate"
+      },
+      "title": "Reference Candidates",
+      "type": "array"
+    },
+    "reference_frame_index": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Reference Frame Index"
+    },
+    "reference_score": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Reference Score"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source_frames": {
+      "items": {
+        "$ref": "#/$defs/SourceSnapshot"
+      },
+      "maxItems": 20,
+      "minItems": 5,
+      "title": "Source Frames",
+      "type": "array"
+    },
+    "status": {
+      "enum": [
+        "analyzed_foldable",
+        "analyzed_rejected"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "suitability": {
+      "enum": [
+        "safe_to_fold",
+        "not_foldable"
+      ],
+      "title": "Suitability",
+      "type": "string"
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "analyzed_at",
+    "status",
+    "suitability",
+    "reasons",
+    "source_frames",
+    "original_total_bytes",
+    "normalized_dimensions",
+    "reference_frame_index",
+    "reference_score",
+    "reference_candidates",
+    "alignment",
+    "config_sha256",
+    "warnings",
+    "deferred_fields"
+  ],
+  "title": "PrototypeAnalysis",
+  "type": "object"
+}

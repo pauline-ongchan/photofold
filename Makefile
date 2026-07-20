@@ -5,8 +5,9 @@ GATE1_OUTPUT ?= artifacts/gate1/hdrplus-static
 GATE1_CONFIG ?= configs/gate1.yaml
 PHASE1B_DATASETS ?= data/real-bursts
 PHASE1B_OUTPUT ?= artifacts/phase1b
+GATE3_ROOT ?= artifacts/gate3
 
-.PHONY: install contracts verify-gate0 human-verify-gate0 verify-gate1 human-verify-gate1 verify-phase1b-fast verify-phase1b human-verify-phase1b dev-processor dev-web
+.PHONY: install contracts verify-gate0 human-verify-gate0 verify-gate1 human-verify-gate1 verify-phase1b-fast verify-phase1b human-verify-phase1b prepare-gate3 clean-gate3 verify-gate3 human-verify-gate3 dev-processor dev-web
 
 install:
 	python3 -m venv .venv
@@ -62,6 +63,29 @@ human-verify-phase1b: verify-phase1b
 	@echo "Open it with networking disabled: open $(PHASE1B_OUTPUT)/report.html"
 	@echo "Copy $(PHASE1B_OUTPUT)/human-review-template.json to $(PHASE1B_OUTPUT)/human-review.json, complete every field, then run:"
 	@echo "$(PYTHON) -m photofold.cli finalize-phase1b-review --artifacts $(PHASE1B_OUTPUT) --review $(PHASE1B_OUTPUT)/human-review.json"
+
+prepare-gate3:
+	@rm -rf $(GATE3_ROOT)/runs $(GATE3_ROOT)/fold.lock
+	@mkdir -p $(GATE3_ROOT)/runs $(GATE3_ROOT)/latest
+	@if test -f artifacts/gate1/hdrplus-static/report.html; then cp artifacts/gate1/hdrplus-static/report.html $(GATE3_ROOT)/latest/gate1-report.html; else echo "Gate 1 report is not present; run make verify-gate1 to regenerate the accepted evidence."; fi
+
+clean-gate3:
+	@rm -rf $(GATE3_ROOT)
+	@echo "Gate 3P local runs and published evidence removed."
+
+verify-gate3: prepare-gate3
+	$(PYTHON) -m ruff check services/processor
+	$(PYTHON) -m pytest -q services/processor/tests/prototype services/processor/tests/unit services/processor/tests/test_dataset.py services/processor/tests/test_doctor.py services/processor/tests/test_health.py
+	npm run contracts:check
+	npm run lint --workspaces --if-present
+	npm run typecheck --workspaces --if-present
+	npm run test --workspace apps/web
+	npm run build --workspace apps/web
+	npm run test:e2e --workspace apps/web -- --project=chromium
+	@echo "GATE 3P: PASS"
+
+human-verify-gate3:
+	@./scripts/run-gate3.sh "$(DATASET)"
 
 dev-processor:
 	$(PYTHON) -m uvicorn photofold.main:app --host 127.0.0.1 --port 8000 --reload

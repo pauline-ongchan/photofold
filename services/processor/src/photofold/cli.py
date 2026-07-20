@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 from pathlib import Path
 from typing import Any
@@ -25,6 +26,13 @@ from photofold.phase1b.experiment import (
 )
 from photofold.phase1b.models import export_phase1b_schemas
 from photofold.phase1b.report import verify_phase1b_report
+from photofold.prototype.models import ErrorEnvelope, export_prototype_schemas
+from photofold.prototype.runner import (
+    PrototypeRunError,
+    analyze_prototype_run,
+    failed_result,
+    fold_prototype_run,
+)
 
 
 def _write_json(payload: dict[str, Any], output: str | None) -> None:
@@ -81,6 +89,44 @@ def _export_phase1b_schemas(args: argparse.Namespace) -> int:
     paths = export_phase1b_schemas(args.output_directory)
     for path in paths:
         print(f"Wrote {path}")
+    return 0
+
+
+def _export_prototype_schemas(args: argparse.Namespace) -> int:
+    paths = export_prototype_schemas(args.output_directory)
+    for path in paths:
+        print(f"Wrote {path}")
+    return 0
+
+
+def _write_prototype_error(run_path: str, error: PrototypeRunError) -> None:
+    run_directory = Path(run_path).resolve()
+    envelope = ErrorEnvelope(error=error.detail)
+    path = run_directory / "error.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(envelope.model_dump_json(indent=2) + "\n", encoding="utf-8")
+    _write_json(envelope.model_dump(mode="json"), None)
+
+
+def _prototype_analyze(args: argparse.Namespace) -> int:
+    try:
+        result = analyze_prototype_run(args.run, args.config)
+    except PrototypeRunError as error:
+        _write_prototype_error(args.run, error)
+        return 1
+    _write_json(result.model_dump(mode="json"), None)
+    return 0
+
+
+def _prototype_fold(args: argparse.Namespace) -> int:
+    try:
+        result = fold_prototype_run(args.run, args.config)
+    except PrototypeRunError as error:
+        _write_prototype_error(args.run, error)
+        with contextlib.suppress(PrototypeRunError):
+            failed_result(args.run, error.detail)
+        return 1
+    _write_json(result.model_dump(mode="json"), None)
     return 0
 
 
@@ -232,6 +278,29 @@ def build_parser() -> argparse.ArgumentParser:
     )
     phase1b_schemas.add_argument("--output-directory", required=True)
     phase1b_schemas.set_defaults(handler=_export_phase1b_schemas)
+
+    prototype_schemas = commands.add_parser(
+        "export-prototype-schemas",
+        help="Write local Phase 4P bridge schemas from the Pydantic models",
+    )
+    prototype_schemas.add_argument("--output-directory", required=True)
+    prototype_schemas.set_defaults(handler=_export_prototype_schemas)
+
+    prototype_analyze = commands.add_parser(
+        "prototype-analyze",
+        help="Validate and analyze one isolated local Phase 4P run",
+    )
+    prototype_analyze.add_argument("--run", required=True)
+    prototype_analyze.add_argument("--config", required=True)
+    prototype_analyze.set_defaults(handler=_prototype_analyze)
+
+    prototype_fold = commands.add_parser(
+        "prototype-fold",
+        help="Fold one analyzed local Phase 4P run with the selected treatment",
+    )
+    prototype_fold.add_argument("--run", required=True)
+    prototype_fold.add_argument("--config", required=True)
+    prototype_fold.set_defaults(handler=_prototype_fold)
 
     phase1b_dataset_benchmark = commands.add_parser(
         "benchmark-phase1b-dataset",

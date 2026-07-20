@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "PhotoFold · Gate 0",
-  description: "PhotoFold deterministic processor foundation status",
+  title: "PhotoFold · Local Prototype",
+  description: "Fold a local photo burst with the deterministic PhotoFold processor",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
@@ -15,4 +15,3 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
     </html>
   );
 }
-

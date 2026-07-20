@@ -7,6 +7,7 @@ const directory = mkdtempSync(join(tmpdir(), "photofold-contracts-"));
 const openapi = join(directory, "openapi.json");
 const generated = join(directory, "generated.ts");
 const phase1bSchemas = join(directory, "phase1b-schemas");
+const prototypeSchemas = join(directory, "prototype-schemas");
 
 try {
   const python = spawnSync(
@@ -28,6 +29,38 @@ try {
     { stdio: "inherit" },
   );
   if (phase1b.status !== 0) process.exit(phase1b.status ?? 1);
+
+  const prototype = spawnSync(
+    ".venv/bin/python",
+    [
+      "-m",
+      "photofold.cli",
+      "export-prototype-schemas",
+      "--output-directory",
+      prototypeSchemas,
+    ],
+    { stdio: "inherit" },
+  );
+  if (prototype.status !== 0) process.exit(prototype.status ?? 1);
+
+  const prototypeTypes = [];
+  for (const name of ["prototype-analysis", "prototype-result", "prototype-error"]) {
+    const output = join(directory, `${name}.ts`);
+    const types = spawnSync(
+      "node_modules/.bin/json2ts",
+      [
+        "--input",
+        join(prototypeSchemas, `${name}.schema.json`),
+        "--output",
+        output,
+        "--bannerComment",
+        "/* Generated from the processor-owned Pydantic schema. Do not edit. */",
+      ],
+      { stdio: "inherit" },
+    );
+    if (types.status !== 0) process.exit(types.status ?? 1);
+    prototypeTypes.push([output, `packages/contracts/src/${name}.ts`]);
+  }
 
   const generator = spawnSync(
     "node_modules/.bin/openapi-typescript",
@@ -55,6 +88,16 @@ try {
       join(phase1bSchemas, "phase1b-human-review.schema.json"),
       "packages/contracts/phase1b-human-review.schema.json",
     ],
+    ...[
+      "prototype-input",
+      "prototype-analysis",
+      "prototype-result",
+      "prototype-error",
+    ].map((name) => [
+      join(prototypeSchemas, `${name}.schema.json`),
+      `packages/contracts/${name}.schema.json`,
+    ]),
+    ...prototypeTypes,
   ];
 
   const stale = comparisons.filter(
