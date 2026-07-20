@@ -310,6 +310,8 @@ def _dataset_section(
   Package: <code>{dataset.photofold_package_sha256}</code> · reference frame {dataset.reference_frame_index}</p>
   <h3>Frozen treatment parameters</h3>
   {_table(['Parameter', 'Value'], [[key, dataset.parameters[key]] for key in sorted(dataset.parameters)])}
+  <h3>Independent-WebP encoder settings</h3>
+  {_table(['Setting', 'Value'], [[key, value] for key, value in dataset.webp_control_settings.model_dump(mode='json').items()])}
   <h3>Storage</h3>
   {_table(['Treatment', 'Bytes', 'Signed bytes saved', 'Signed savings %'], storage_rows)}
   <h3>Quality</h3>

@@ -20,6 +20,9 @@ from photofold.doctor import run_doctor
 from photofold.gate1.alignment import AlignmentFailure, select_reference_and_align
 from photofold.gate1.bundle import decode_package_frame, verify_package
 from photofold.gate1.images import (
+    WEBP_EXACT,
+    WEBP_FORMAT,
+    WEBP_METHOD,
     difference_heatmap,
     load_rgb,
     rgb_psnr,
@@ -35,6 +38,7 @@ from photofold.gate1.treatment import (
     write_alignment_overlays,
 )
 from photofold.phase1b.baseline import (
+    FIXED_QUALITY,
     MATCHED_QUALITIES,
     run_fixed_control,
     run_matched_sweep,
@@ -51,6 +55,7 @@ from photofold.phase1b.models import (
     PackageMemberResult,
     Phase1BDatasetResult,
     PsnrValue,
+    WebPControlSettings,
 )
 
 
@@ -605,6 +610,15 @@ def run_phase1b_dataset(
         accepted_frame_count=len(per_frame),
         reconstructed_frame_count=len(reconstructions),
         original_total_bytes=validation["total_bytes"],
+        webp_control_settings=WebPControlSettings(
+            format=WEBP_FORMAT,
+            method=WEBP_METHOD,
+            exact=WEBP_EXACT,
+            fixed_quality=FIXED_QUALITY,
+            matched_quality_min=MATCHED_QUALITIES[0],
+            matched_quality_max=MATCHED_QUALITIES[-1],
+            matched_quality_step=MATCHED_QUALITIES[1] - MATCHED_QUALITIES[0],
+        ),
         fixed_webp=fixed_webp,
         matched_webp=matched_webp,
         full_curve_required=require_full_curve,

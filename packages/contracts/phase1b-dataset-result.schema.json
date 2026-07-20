@@ -302,6 +302,57 @@
       ],
       "title": "SourceRecord",
       "type": "object"
+    },
+    "WebPControlSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "exact": {
+          "const": true,
+          "title": "Exact",
+          "type": "boolean"
+        },
+        "fixed_quality": {
+          "const": 70,
+          "title": "Fixed Quality",
+          "type": "integer"
+        },
+        "format": {
+          "const": "WEBP",
+          "title": "Format",
+          "type": "string"
+        },
+        "matched_quality_max": {
+          "const": 100,
+          "title": "Matched Quality Max",
+          "type": "integer"
+        },
+        "matched_quality_min": {
+          "const": 1,
+          "title": "Matched Quality Min",
+          "type": "integer"
+        },
+        "matched_quality_step": {
+          "const": 1,
+          "title": "Matched Quality Step",
+          "type": "integer"
+        },
+        "method": {
+          "const": 6,
+          "title": "Method",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "format",
+        "method",
+        "exact",
+        "fixed_quality",
+        "matched_quality_min",
+        "matched_quality_max",
+        "matched_quality_step"
+      ],
+      "title": "WebPControlSettings",
+      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -506,6 +557,9 @@
       "additionalProperties": true,
       "title": "Validation",
       "type": "object"
+    },
+    "webp_control_settings": {
+      "$ref": "#/$defs/WebPControlSettings"
     }
   },
   "required": [
@@ -528,6 +582,7 @@
     "accepted_frame_count",
     "reconstructed_frame_count",
     "original_total_bytes",
+    "webp_control_settings",
     "fixed_webp",
     "matched_webp",
     "full_curve_required",

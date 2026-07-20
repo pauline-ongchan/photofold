@@ -109,6 +109,16 @@ class ControlTiming(Phase1BModel):
     total_ms: float = Field(ge=0)
 
 
+class WebPControlSettings(Phase1BModel):
+    format: Literal["WEBP"]
+    method: Literal[6]
+    exact: Literal[True]
+    fixed_quality: Literal[70]
+    matched_quality_min: Literal[1]
+    matched_quality_max: Literal[100]
+    matched_quality_step: Literal[1]
+
+
 class IndependentWebPPoint(Phase1BModel):
     quality: int = Field(ge=1, le=100)
     total_bytes: int = Field(gt=0)
@@ -178,6 +188,7 @@ class Phase1BDatasetResult(Phase1BModel):
     accepted_frame_count: int = Field(ge=0, le=20)
     reconstructed_frame_count: int = Field(ge=0, le=20)
     original_total_bytes: int = Field(gt=0)
+    webp_control_settings: WebPControlSettings
     fixed_webp: IndependentWebPPoint
     matched_webp: MatchedBaselineResult
     full_curve_required: bool

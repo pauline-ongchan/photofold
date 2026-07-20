@@ -77,6 +77,15 @@ def test_dataset_runner_uses_closed_package_and_real_accounting(tmp_path: Path) 
     assert result["accepted_frame_count"] == 5
     assert result["reconstructed_frame_count"] == 5
     assert result["fixed_webp"]["quality"] == 70
+    assert result["webp_control_settings"] == {
+        "format": "WEBP",
+        "method": 6,
+        "exact": True,
+        "fixed_quality": 70,
+        "matched_quality_min": 1,
+        "matched_quality_max": 100,
+        "matched_quality_step": 1,
+    }
     assert [point["quality"] for point in result["matched_webp"]["curve"]] == [1, 100]
     assert result["photofold_package_bytes"] == (output / "moment.photofold").stat().st_size
     assert result["package_overhead"]["reconciles"] is True
