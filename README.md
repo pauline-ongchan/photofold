@@ -2,7 +2,7 @@
 
 PhotoFold is a hackathon prototype exploring whether groups of similar photos can be stored as one shared scene plus frame-specific differences while retaining every frame.
 
-## Current status: Phase 1B validation experiment
+## Current status: Phase 1B accepted; local prototype next
 
 This repository implements the Gate 0 foundation, the CLI-only Gate 1 compression proof, and the completed Phase 1B multi-dataset validation experiment:
 
@@ -20,7 +20,9 @@ This repository implements the Gate 0 foundation, the CLI-only Gate 1 compressio
 - deterministic all-dataset aggregation and recommendation rules; and
 - self-contained offline HTML experiment reports with artifact-bound human review records.
 
-The Phase 1B automated experiment passes for all three canonical datasets, and the project owner accepts the current reconstruction quality for the hackathon MVP. The final recommendation is `CONTINUE COMPRESSION-FIRST`. Runtime and implementation complexity are documented MVP limitations rather than completion blockers: the current trade-off can be disproportionate for some datasets, and runtime, encoding efficiency, package overhead, and dataset selection require future optimization. There is intentionally no upload/product flow, processing API, job system, GPT integration, or other Phase 2 work. The Next.js page remains a health-only foundation page.
+The Phase 1B automated experiment passes for all three canonical datasets, and the project owner accepts the current reconstruction quality for the hackathon MVP. The final recommendation is `CONTINUE COMPRESSION-FIRST`. Runtime and implementation complexity are documented MVP limitations rather than completion blockers: the current trade-off can be disproportionate for some datasets, and runtime, encoding efficiency, package overhead, and dataset selection require future optimization. There is currently no upload/product flow, processing API, job system, or GPT integration. The Next.js page remains a health-only foundation page.
+
+For the controlled hackathon prototype, Phase 2 / Gate 2A pipeline hardening and Phase 3 / Gate 2B FastAPI processing routes are explicitly deferred rather than completed. The next target is Phase 4P / Gate 3P: a local end-to-end web flow backed by a narrow, single-run bridge to the real processor CLI. The production-oriented failure matrix, reusable API contract, persistence, concurrency, restart recovery, and TTL lifecycle remain documented future work.
 
 ## Prerequisites
 

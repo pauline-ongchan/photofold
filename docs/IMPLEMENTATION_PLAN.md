@@ -1,6 +1,6 @@
 # PhotoFold Implementation Plan
 
-**Status:** Phase 0, the CLI-only Phase 1, and Phase 1B are implemented and accepted for the hackathon MVP; Phase 2 and later remain proposed and unimplemented
+**Status:** Phase 0, the CLI-only Phase 1, and Phase 1B are implemented and accepted for the hackathon MVP. Phase 2 / Gate 2A and Phase 3 / Gate 2B are explicitly deferred rather than completed. The next prototype target is Phase 4P / Gate 3P, a local end-to-end web flow using a narrow CLI bridge. The deferred hardening and FastAPI service remain the production-oriented path.
 **Source of truth:** `docs/PhotoFold_Developer_PRD.md`
 **Demo context only:** `docs/PhotoFold_Demo_Script.md`
 **Planning date:** 2026-07-18
@@ -26,6 +26,9 @@ The implementation should follow these rules:
 7. GPT-5.6 is an optional, bounded P1 enhancement after the deterministic pipeline passes.
 8. There is no authentication, billing, database, queue service, cloud storage, or production deployment work in the MVP.
 9. Unsupported sets should fail honestly. A narrow reliable success envelope is preferable to misleading universal support.
+10. Phase 1B supplies sufficient multi-dataset evidence for the hackathon prototype to proceed without completing Gate 2A or building the Gate 2B FastAPI service.
+11. Deferred gates are not considered passed. Their hardening, failure-matrix, service, persistence, concurrency, and lifecycle requirements remain documented future work.
+12. The prototype UI must use the real deterministic processor through a fixed local bridge; it must not replace processing or measurements with fixtures, mocks, or hard-coded results.
 
 ## 2. Initial repository inspection
 
@@ -39,22 +42,23 @@ docs/
 
 There was no `AGENTS.md`, `README.md`, dependency manifest, dataset, test suite, CI configuration, frontend, or processor. The filenames also differed from the shorter names used in the task and from the structure proposed by the PRD. Gate 0 kept the existing source-document names and now references them consistently rather than creating duplicate copies.
 
-The repository now contains the implemented Gate 0 foundation and the CLI-only Gate 1 compression experiment described in their completion records below. Gate 1 adds the deterministic package writer/decoder, reconstruction, real metrics, tests, and offline report. It does not add the upload/product workflow, processing API, job system, extra datasets, or GPT integration reserved for later phases.
+The repository now contains the implemented Gate 0 foundation, the CLI-only Gate 1 compression experiment, and the completed Phase 1B multi-dataset validation described in their completion records below. Those phases add the deterministic package writer/decoder, reconstruction, real metrics, tests, offline reports, and three-scenario evidence. They do not add an upload/product workflow, processing API, job system, or GPT integration. For the hackathon prototype, the upload/product flow is now the next target; the processing API and job system remain deferred.
 
-## 3. Recommended architecture at a glance
+## 3. Approved prototype architecture at a glance
 
 ```text
 Browser / Next.js
-  ├── uploads images with multipart HTTP
-  ├── polls typed JSON job state
-  └── loads original, reconstruction, difference, and download artifacts by URL
+  ├── uploads images to a local-only route or server action
+  ├── shows honest run state from the bridge
+  └── loads reconstruction, difference, export, and package artifacts
                     │
-                    │ HTTP on localhost; no shared runtime imports
+                    │ narrow local bridge; fixed argument vector; no shell text
                     ▼
-Single-process FastAPI service
-  ├── Pydantic API contracts and structured errors
-  ├── one in-process fold job at a time
-  ├── temporary per-moment workspace on local disk
+Single-run prototype bridge
+  ├── validates file count, names, paths, and supported formats
+  ├── creates one run-scoped temporary workspace
+  ├── invokes the existing Python CLI with allow-listed arguments
+  ├── reads typed result JSON and generated artifacts
   └── deterministic PhotoFold pipeline
         ├── normalize and validate
         ├── select reference and align
@@ -68,9 +72,9 @@ Optional GPT-5.6 adapter (P1 only)
   └── reduced-resolution contact sheet; schema-validated advice; safe no-op fallback
 ```
 
-The browser should call FastAPI directly via `NEXT_PUBLIC_PROCESSOR_URL`. A Next.js proxy or server action would duplicate large uploads and add timeout and memory failure modes without helping the local hackathon prototype. FastAPI should allow only the configured local frontend origin through CORS.
+For Phase 4P, a local-only Next.js route handler or server action may invoke the existing processor CLI. It must construct a fixed argument vector without a shell, reject paths outside its run workspace, allow one active fold, and return only processor-derived results. This is an intentionally constrained single-machine demo bridge, not a reusable public API.
 
-The processor should run as one Uvicorn process. An in-process executor with a concurrency limit of one is sufficient for fold jobs. It can return `202 Accepted` and persist job state to a JSON file that the frontend polls. Do not add Celery, Redis, or another queue.
+The bridge may expose coarse states such as `validating`, `processing`, `complete`, and `failed` when they correspond to real execution. It must not simulate stage progress. FastAPI, generated product-route OpenAPI contracts, persistent job state, restart recovery, concurrency behavior, and TTL lifecycle management remain deferred Gate 2B work. Do not add Celery, Redis, or another queue.
 
 ## 4. Technical-assumption review and decisions
 
@@ -90,11 +94,11 @@ The processor should run as one Uvicorn process. An in-process executor with a c
 | Quality | Whole-image SSIM can hide a damaged face or a small severe artifact. Color and range settings are unspecified. | P0 reports per-frame RGB SSIM using `data_range=255` and `channel_axis=2`, plus mean, minimum, and a real pixel-difference heatmap. Gate 1 selects and records thresholds after visual review. Add changed-region SSIM or worst-tile error as an engineering diagnostic if whole-image SSIM masks local damage. |
 | Failure timing | Savings and final quality are known only after reconstruction, so the pipeline cannot literally stop before creating the package. | Complete reconstruction and evaluation, then mark the result `complete`, `complete_no_savings`, or `failed_quality`. Retain debug artifacts for review and never present a failed fold as saved storage. |
 | Analyze versus fold | Separate endpoints risk performing alignment twice. | Analyze at reduced resolution and persist its results. Fold reuses metadata/reference choices and performs full-resolution final work. Any estimate shown before folding is explicitly labeled. |
-| Processing model | A long synchronous HTTP request is vulnerable to browser/proxy timeouts; production job infrastructure is overkill. | Use an in-process, single-job executor and polling in Gate 2. Store status and artifacts in the moment's temporary directory so a demo can inspect failures. |
+| Processing model | A long synchronous request is vulnerable to timeouts, but a durable job service is disproportionate for the controlled prototype. | Phase 4P uses one local CLI process at a time, a run-scoped directory, and honest coarse state. Durable polling, restart recovery, queues, and multi-user concurrency are deferred to Gate 2B. |
 | WebP/AVIF availability | Codec support depends on the Pillow build, and AVIF support is less predictable across machines. | Add a processor “doctor” check for Pillow WebP support. Gate 1 uses WebP only. Run a later AVIF benchmark only if WebP passes and time remains. |
-| GPT-5.6 | Requiring model output to change encoding can make deterministic output less reliable and can be decorative if it does not. | Add a narrow `SemanticAdvisor` interface only after Gate 3. Model advice may raise quality or mask dilation in bounded regions; invalid, unavailable, or timed-out advice becomes a no-op. Core acceptance and metrics never depend on it. |
+| GPT-5.6 | Requiring model output to change encoding can make deterministic output less reliable and can be decorative if it does not. | Add a narrow `SemanticAdvisor` interface only after Gate 3P. Model advice may raise quality or mask dilation in bounded regions; invalid, unavailable, or timed-out advice becomes a no-op. Core acceptance and metrics never depend on it. |
 | HEIC | HEIC decoding often needs platform-specific libraries and is already conditional in the PRD. | Defer HEIC until all deterministic gates pass. Do not let HEIC setup consume Gate 1 time. |
-| Privacy cleanup | A robust distributed retention system is out of scope, but leaving uploads indefinitely violates the PRD. | Use a configured local workspace, a `DELETE` endpoint, startup cleanup, and best-effort TTL cleanup. State clearly that this is prototype behavior. |
+| Privacy cleanup | A robust retention system is out of scope, but leaving uploads indefinitely is inappropriate even for a prototype. | Phase 4P uses run-scoped temporary directories plus explicit startup/manual cleanup and clearly labels this as prototype behavior. A `DELETE` endpoint and best-effort TTL cleanup are deferred to Gate 2B. |
 
 ## 5. Final proposed technology stack
 
@@ -114,14 +118,14 @@ Use conservative, pinned versions in lockfiles after the foundation phase verifi
 - Tailwind CSS 4.3.3 for fast, local styling.
 - Native `fetch`, `FormData`, file input/drag events, and object URLs; avoid an extra data-fetching framework.
 - `<canvas>` for the comparison slider overlay and difference display.
-- Generated TypeScript types from FastAPI's OpenAPI document using `openapi-typescript`.
-- ESLint 9.39.2 and the TypeScript compiler in Gate 0. Add Vitest/React Testing Library and Playwright only when Gate 2 introduces product behavior worth testing.
+- Keep the generated health contract synchronized with FastAPI/Pydantic. Phase 4P may use a deliberately narrow bridge response validated against processor result schemas; generated product-route OpenAPI types resume with Gate 2B.
+- ESLint 9.39.2 and the TypeScript compiler in Gate 0. Add Vitest/React Testing Library and Playwright when Phase 4P introduces product behavior worth testing.
 
 Use the current stable Next.js release selected and locked during Gate 0, rather than a floating `latest` dependency. The official installation guide documents the App Router defaults and Node requirement: <https://nextjs.org/docs/app/getting-started/installation>.
 
 ### Processor
 
-- FastAPI, Uvicorn, Pydantic, and `python-multipart`.
+- FastAPI, Uvicorn, and Pydantic remain for the implemented health boundary. Product processing routes and `python-multipart` usage are deferred to Gate 2B.
 - OpenCV headless for features, transform estimation, warping, masks, and debug overlays.
 - Pillow for decode/encode, EXIF transpose, thumbnails, contact sheets, and codec capability checks.
 - NumPy for pixel operations.
@@ -298,7 +302,9 @@ The independent baseline is evaluated as a rate-distortion curve, not a single a
 
 SSIM is calculated for every reconstructed normalized frame. The evaluator must reopen the archive through the public decoder and compare the decoder's output, rather than compare an in-memory intermediate. Difference heatmaps are generated from real absolute pixel error. Thresholds and all codec/mask settings are persisted with the result.
 
-## 8. Next.js-to-Python interface
+## 8. Deferred Next.js-to-Python service interface (Gate 2B)
+
+This section preserves the intended reusable service contract for the deferred Gate 2B. It is not a Phase 4P prerequisite. Phase 4P uses the local bridge described in Section 3: one run at a time, fixed non-shell arguments, run-scoped paths, processor result schemas, and direct access only to generated artifacts. The bridge must remain private to the local app and must not be presented as this production-oriented HTTP contract.
 
 ### 8.1 Boundary and contract ownership
 
@@ -376,7 +382,7 @@ All non-success responses use one shape:
 
 The frontend polls `GET /v1/moments/{id}` every 750–1000 ms while work is active and stops in a terminal state. One fold job runs at a time; a second request receives a structured `JOB_BUSY` response or remains queued in the single in-memory queue. Progress is stage-level and based on actual completed work units, not a fake timer.
 
-FastAPI supports returning a response before background work, but its own documentation notes that heavier computation can call for larger queue systems. For this constrained single-machine prototype, the in-process single-job design is the intentional middle ground: <https://fastapi.tiangolo.com/tutorial/background-tasks/>.
+FastAPI supports returning a response before background work, but its own documentation notes that heavier computation can call for larger queue systems. When Gate 2B resumes, the in-process single-job design is the intentional middle ground for the first reusable local service: <https://fastapi.tiangolo.com/tutorial/background-tasks/>.
 
 ## 9. Smallest end-to-end demoable vertical slice
 
@@ -708,6 +714,8 @@ The summed per-dataset wall-clock observations were 13,493,499.437 ms (3.748 hou
 
 ### Phase 2 / Gate 2A — Deterministic pipeline hardening
 
+**Prototype disposition:** Deferred, not passed. Phase 1B already supplies the multi-dataset success-path evidence needed for the hackathon prototype. The remaining work below becomes post-prototype hardening unless a concrete demo failure requires a focused subset earlier.
+
 **Goal:** Turn the successful spike into a testable pipeline that handles all three curated scenarios and fails unsuitable inputs clearly.
 
 **Deliverables**
@@ -758,6 +766,8 @@ make verify-gate2a
 6. **Gate failure is indicated by:** A missing curated scenario; an unexpected accepted/rejected frame; any package-only, checksum, dimension, quality, or regression-range failure; a rejection fixture with the wrong code/reason; a metric shown without a run artifact; model/network dependency; broken report links; or an overall `FAIL` verdict.
 
 ### Phase 3 / Gate 2B — Stable local processing service
+
+**Prototype disposition:** Deferred, not passed. The hackathon prototype does not require a reusable FastAPI processing boundary. Phase 4P instead uses the constrained local bridge defined below. Return to this gate before remote deployment, multi-user use, or treating the processor as an independently supported service.
 
 **Goal:** Expose the proven deterministic pipeline through the typed FastAPI boundary without adding infrastructure.
 
@@ -811,15 +821,18 @@ The manual two-terminal smoke command should also be wrapped by `make verify-gat
 5. **Inspect these generated artifacts:** Within `artifacts/gate2b/`, inspect `api-smoke-report.html`, `request-log.json`, `state-transitions.json`, `downloaded.photofold`, `downloaded-bundle.sha256`, `original.webp`, `reconstruction.webp`, `difference.png`, and `exported.webp`.
 6. **Gate failure is indicated by:** Any unexpected HTTP status; fake/timer-only progress; missing route/schema; inaccessible artifact; bundle byte/checksum mismatch; malformed error; concurrency corruption; delete/cleanup failure; GPT/network requirement; traceback; or overall `FAIL`.
 
-### Phase 4 / Gate 3 — End-to-end web product flow
+### Phase 4P / Gate 3P — Local end-to-end prototype flow
 
-**Goal:** Build only the UI required to exercise and prove the real processor.
+**Status:** Next implementation target for the hackathon prototype. This prototype profile intentionally proceeds while Gate 2A and Gate 2B remain deferred.
+
+**Goal:** Build only the local UI and bridge required to exercise and prove the real processor without introducing a standalone processing service.
 
 **Deliverables**
 
 - Upload/drop screen with instruction text, ordered thumbnails, filename, exact source size, normalized dimensions, remove action, and total.
-- Analysis screen with labeled estimates, reference rationale, suitability, reasons, outliers, and explicit Fold action.
-- Real polling progress tied to processor stages.
+- Analysis/confirmation screen with the real validation and reference information currently available, explicit labels for deferred analysis details, and an explicit Fold action.
+- A local-only Next.js bridge that invokes the existing CLI with fixed, allow-listed arguments and isolated run directories.
+- Honest coarse run state tied to actual CLI execution; no timer-only or invented stage progress.
 - Results screen with actual storage/result state, mean/minimum/per-frame SSIM, warnings, and contents summary.
 - Frame browser with original/reconstruction toggle or slider and difference heatmap.
 - One-frame standard export and `.photofold` bundle download.
@@ -829,12 +842,13 @@ The manual two-terminal smoke command should also be wrapped by `make verify-gat
 **Acceptance criteria**
 
 - A user completes upload → analyze → fold → inspect → export → bundle download with no CLI step.
-- UI values match the API response and downloaded file stat; no number is computed from a mock or animation.
+- UI values match processor result artifacts and downloaded file stat; no number is computed from a mock or animation.
 - Removing a file before analysis changes the uploaded total and processor input.
-- Rejected frames remain visible with reasons.
+- Invalid input and processor failures are understandable; structured per-frame rejection remains deferred unless the existing processor emits it.
 - The viewer uses actual per-frame artifacts and can zoom via normal browser/canvas behavior.
 - No-savings and failed-quality results never display positive-savings language.
 - One Playwright test covers the curated happy path; focused tests cover error-state rendering.
+- The bridge accepts only files in its run workspace, never interpolates user input into shell text, permits one active fold, and provides explicit startup/manual cleanup.
 
 **Validation commands**
 
@@ -849,20 +863,20 @@ make verify-gate3
 
 #### Human verification
 
-1. **Run:** From the repository root, run `make human-verify-gate3 DATASET=data/demo/expression-static`. The target must clear only its Gate 3 temporary state, start the real processor and frontend, print `Gate 3 app ready at http://127.0.0.1:3000`, and remain running until `Ctrl-C`.
+1. **Run:** From the repository root, run `make human-verify-gate3 DATASET=data/real-bursts/static-handheld`. The target must clear only its Gate 3P temporary state, start the local bridge and frontend, print `Gate 3P app ready at http://127.0.0.1:3000`, and remain running until `Ctrl-C`.
 2. **Open:** Open <http://127.0.0.1:3000>.
-3. **Expect to see:** A usable PhotoFold flow. Uploading the files in `data/demo/expression-static/` shows ordered thumbnails and real source totals. Analyze shows suitability, labeled estimates, reference rationale, and per-frame disposition. Fold shows real stage progress. Results show real archive/original/saved bytes, mean/minimum SSIM, every reconstructed frame, comparison view, heatmap, export, and bundle download. A no-savings fixture visibly uses neutral/failure language rather than a positive claim.
+3. **Expect to see:** A usable PhotoFold prototype flow. Uploading the files in `data/real-bursts/static-handheld/` shows ordered thumbnails and real source totals. Analyze shows the real validation/reference information currently available from the processor. Fold shows honest busy/completed/failed state from the CLI run. Results show real archive/original/saved bytes, mean/minimum SSIM, every reconstructed frame, comparison view, heatmap, export, and bundle download. A measured no-savings result visibly uses neutral/failure language rather than a positive claim.
 4. **Pass/fail checklist:**
    - [ ] All uploaded thumbnails, names, sizes, dimensions, and source total are visible and correct; removing one file updates the total before analysis.
-   - [ ] Analysis clearly labels estimates, retains original frame indices, and explains suitability/reference selection.
-   - [ ] Fold progress follows actual processor stages and reaches a terminal result without reloading the page.
+   - [ ] Analysis clearly distinguishes available processor facts from unavailable or deferred analysis details.
+   - [ ] Fold state follows the actual CLI process and reaches a terminal result without fake progress.
    - [ ] Results match the processor values shown in `artifacts/gate3/latest/result.json`.
    - [ ] Every frame can switch/slide between original and reconstruction, zoom, and show a real heatmap.
    - [ ] One exported standard image opens in the browser/Preview and the `.photofold` bundle downloads with the displayed byte size.
-   - [ ] Invalid, rejected, failed-quality, and no-savings cases are understandable and never show invented positive savings.
+   - [ ] Invalid, failed-quality, and no-savings cases are understandable and never show invented positive savings; unsupported per-frame rejection behavior is not fabricated.
    - [ ] No login, database, cloud service, GPT credential, or source-code inspection is needed.
 5. **Inspect these generated artifacts:** Within `artifacts/gate3/latest/`, inspect `result.json`, `moment.photofold`, `exported-frame.webp`, `ui-e2e-report/index.html`, and `gate1-report.html`; also open the browser-downloaded `PhotoFold-frame-000.webp` and `moment.photofold` files. The Gate 1 report is the processor-evidence cross-check if a displayed value is in doubt.
-6. **Gate failure is indicated by:** A broken workflow; stale/mock/hard-coded metric; UI/API value mismatch; fake progress; missing/rejected frame without explanation; inaccessible compare/heatmap/export/bundle; downloaded byte mismatch; misleading savings language; unreadable error state; external-service requirement; or automated/human verdict `FAIL`.
+6. **Gate failure is indicated by:** A broken workflow; stale/mock/hard-coded metric; UI/processor-artifact mismatch; unsafe path or shell handling; fake progress; inaccessible compare/heatmap/export/bundle; downloaded byte mismatch; misleading savings language; unreadable error state; standalone processing-service requirement; or automated/human verdict `FAIL`.
 
 ### Phase 5 / Gate 4 — Optional semantic preservation
 
@@ -907,9 +921,9 @@ The provider-backed validation is optional for the deterministic build but requi
    - [ ] Both modes show newly measured package and quality metrics rather than copied values.
    - [ ] Geometry, byte accounting, SSIM, and deterministic acceptance remain processor-owned.
    - [ ] The forced model failure visibly falls back to deterministic processing and still reconstructs every expected frame.
-   - [ ] Running with provider `none` remains a complete Gate 3-quality workflow.
+   - [ ] Running with provider `none` remains a complete Gate 3P-quality workflow.
 5. **Inspect these generated artifacts:** Within `artifacts/gate4/`, inspect `semantic-comparison.html`, `contact-sheet.webp`, `semantic-analysis.json`, `decision-log.json`, `deterministic/moment.photofold`, `deterministic/result.json`, `semantic/moment.photofold`, `semantic/result.json`, `overlays/`, and `fallback-result.json`.
-6. **Gate failure is indicated by:** No observable bounded decision; full-resolution source upload without justification; invalid/unrecorded model output; semantic mode using fabricated/stale metrics; model advice controlling geometry or measurement; forced failure breaking deterministic processing; missing A/B evidence; or overall `FAIL`. If credentials are unavailable, Gate 4 is `SKIPPED`, not passed; Gates 0–3 remain unaffected.
+6. **Gate failure is indicated by:** No observable bounded decision; full-resolution source upload without justification; invalid/unrecorded model output; semantic mode using fabricated/stale metrics; model advice controlling geometry or measurement; forced failure breaking deterministic processing; missing A/B evidence; or overall `FAIL`. If credentials are unavailable, Gate 4 is `SKIPPED`, not passed; completed deterministic gates, including Gate 3P, remain unaffected.
 
 ### Phase 6 / Gate 5 — Demo hardening and optional codec experiment
 
@@ -972,9 +986,9 @@ Parallel work must not bypass Gate 1. In particular, building the full UI in par
 | Plan approved | Repository/tooling setup; licensing/curation of dataset 1; transform/manifest contract review. | Freeze metric and transform conventions before implementation merges. |
 | Gate 0 structure exists | Alignment/reference experiment; independent-WebP/SSIM benchmark harness; package schema/validator tests. | Use fixed fixture contracts. One owner integrates encoder/decoder so coordinate assumptions cannot diverge. |
 | First Gate 1 package reconstructs | Mask/patch parameter sweeps; package-only decoder tests; debug-report generation. | All tracks use the same package version and rate-distortion report. |
-| Gate 1 passes | Dataset 2/3 preparation and expected outcomes; deterministic failure tests; FastAPI contract implementation; low-fidelity UI layout/design only. | Do not bind the UI to hand-written responses. Wait for generated OpenAPI types before real data integration. |
-| API contract is frozen | Upload/analysis frontend; results/viewer frontend; API/job-state tests; cleanup/hardening. | Integrate daily against the same real local processor and never add fixture-only metrics to product code. |
-| Gate 3 passes | Semantic adapter; semantic UI panel; demo animation; cached-output verification; optional AVIF experiment. | Each enhancement must be removable without changing the deterministic path. |
+| Phase 1B passes | Phase 4P local bridge safety; upload/results UI; viewer/export flow; focused error rendering. | Integrate against the same real local CLI and result schemas. Never add fixture-only metrics to product code. |
+| Phase 4P passes | Demo rehearsal and deferred Gate 2A hardening may proceed independently; Gate 2B owns any reusable API/service work. | Keep the local bridge private and narrow; do not let its ad hoc shape become the production API contract. |
+| Gate 3P passes | Semantic adapter; semantic UI panel; demo animation; cached-output verification; optional AVIF experiment. | Each enhancement must be removable without changing the deterministic path. |
 
 Tasks that should not run independently are: defining transform direction versus implementing the decoder, changing package contents versus byte accounting, changing masks versus quality gates, and changing API result fields versus generated contracts.
 
@@ -1024,15 +1038,15 @@ and package smaller than original?
   no  → tune/narrow; do not build full UI
   yes → does it beat independent WebP at matched quality?
           no  → do not claim relational proof; tune or reconsider hypothesis
-          yes → harden deterministic pipeline and add API
+          yes → run the Phase 1B multi-dataset validation
 
-Three curated sets reliable through API?
-  no  → harden/reduce supported envelope
-  yes → build complete web flow
+Phase 1B evidence accepted for the controlled prototype?
+  no  → harden/reduce supported envelope before product work
+  yes → defer Gate 2A/2B and build Phase 4P with the local CLI bridge
 
-Deterministic web demo reliable with time remaining?
+Deterministic local web prototype reliable with time remaining?
   no  → harden and rehearse
   yes → optionally add GPT-5.6, animation, and AVIF experiment
 ```
 
-The first experiment therefore determines whether the project should proceed as designed. That is the intended behavior of the plan, not a delay to product work.
+The prototype profile optimizes for a credible single-machine demonstration. Gate 2A and Gate 2B remain the path back to broader input hardening and a reusable processing service; neither is implied to be complete by a successful Phase 4P demo.
