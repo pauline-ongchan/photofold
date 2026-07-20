@@ -34,3 +34,19 @@ make human-verify-gate1
 ```
 
 Use `apply_patch` for text changes and keep generated contract files synchronized with `npm run contracts:generate`.
+
+## Git and delivery workflow
+
+- Never develop directly on `main`.
+- For each new phase or independent feature, create a descriptive feature branch before making implementation changes.
+- Commit after each logical milestone using conventional commit messages.
+- Run relevant linting, type-checking, builds, and tests before considering the work complete.
+- At the end of every task, provide:
+  - a summary of changes,
+  - tests run and their results,
+  - remaining technical debt,
+  - assumptions made,
+  - and anything requiring manual review.
+- After completing the work, push the feature branch and create a draft pull request against `main`.
+- Include the completion summary in the pull request description.
+- Never merge into `main` automatically. Wait for my explicit approval.
