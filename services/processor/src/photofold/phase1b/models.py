@@ -75,6 +75,9 @@ class Phase1BDatasetManifest(Phase1BModel):
         paths = [item.path for item in self.files]
         if len(paths) != len(set(paths)):
             raise ValueError("Dataset manifest contains duplicate file paths")
+        filenames = [PurePosixPath(path).name for path in paths]
+        if len(filenames) != len(set(filenames)):
+            raise ValueError("Dataset manifest contains duplicate filenames")
         return self
 
 
@@ -96,7 +99,7 @@ class PsnrValue(Phase1BModel):
 class ControlFrameResult(Phase1BModel):
     index: int = Field(ge=0)
     bytes: int = Field(gt=0)
-    ssim: float = Field(ge=0, le=1)
+    ssim: float = Field(ge=-1, le=1)
     psnr_db: PsnrValue
 
 
@@ -109,8 +112,8 @@ class ControlTiming(Phase1BModel):
 class IndependentWebPPoint(Phase1BModel):
     quality: int = Field(ge=1, le=100)
     total_bytes: int = Field(gt=0)
-    mean_ssim: float = Field(ge=0, le=1)
-    minimum_ssim: float = Field(ge=0, le=1)
+    mean_ssim: float = Field(ge=-1, le=1)
+    minimum_ssim: float = Field(ge=-1, le=1)
     mean_psnr_db: PsnrValue
     minimum_psnr_db: PsnrValue
     per_frame: list[ControlFrameResult] = Field(min_length=1)
@@ -177,6 +180,7 @@ class Phase1BDatasetResult(Phase1BModel):
     original_total_bytes: int = Field(gt=0)
     fixed_webp: IndependentWebPPoint
     matched_webp: MatchedBaselineResult
+    full_curve_required: bool
     photofold_package_bytes: int = Field(gt=0)
     photofold_package_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     storage: dict[str, Any]

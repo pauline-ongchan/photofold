@@ -557,6 +557,7 @@ def run_phase1b_dataset(
         "versus_fixed_webp": _signed_comparison(fixed_webp.total_bytes, package_bytes),
         "versus_matched_webp": matched_comparison,
     }
+    environment = _runtime_environment()
     timings = {
         "clock": "time.perf_counter_ns",
         "units": "milliseconds",
@@ -599,13 +600,14 @@ def run_phase1b_dataset(
         config_path=str(config_file),
         config_sha256=config_sha256,
         parameters=parameters,
-        environment=_runtime_environment(),
+        environment=environment,
         frame_dispositions=frame_dispositions,
         accepted_frame_count=len(per_frame),
         reconstructed_frame_count=len(reconstructions),
         original_total_bytes=validation["total_bytes"],
         fixed_webp=fixed_webp,
         matched_webp=matched_webp,
+        full_curve_required=require_full_curve,
         photofold_package_bytes=package_bytes,
         photofold_package_sha256=package_sha256,
         storage=storage,

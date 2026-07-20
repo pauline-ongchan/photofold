@@ -164,6 +164,16 @@ def validate_phase1b_collection(root: str | Path) -> dict[str, Any]:
     results = [validate_phase1b_dataset(root_path / name) for name in PHASE1B_DATASET_IDS]
     ids = [result.get("dataset_id") for result in results if result.get("dataset_id")]
     collection_errors: list[str] = []
+    if root_path.is_dir():
+        unexpected_directories = sorted(
+            path.name
+            for path in root_path.iterdir()
+            if path.is_dir() and path.name not in PHASE1B_DATASET_IDS
+        )
+        if unexpected_directories:
+            collection_errors.append(
+                f"Unexpected Phase 1B dataset directories: {unexpected_directories}"
+            )
     if len(ids) != len(set(ids)):
         collection_errors.append("Dataset IDs are not unique")
     for expected_id, result in zip(PHASE1B_DATASET_IDS, results, strict=True):

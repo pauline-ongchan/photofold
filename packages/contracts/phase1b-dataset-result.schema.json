@@ -18,7 +18,7 @@
         },
         "ssim": {
           "maximum": 1,
-          "minimum": 0,
+          "minimum": -1,
           "title": "Ssim",
           "type": "number"
         }
@@ -67,7 +67,7 @@
         },
         "mean_ssim": {
           "maximum": 1,
-          "minimum": 0,
+          "minimum": -1,
           "title": "Mean Ssim",
           "type": "number"
         },
@@ -76,7 +76,7 @@
         },
         "minimum_ssim": {
           "maximum": 1,
-          "minimum": 0,
+          "minimum": -1,
           "title": "Minimum Ssim",
           "type": "number"
         },
@@ -369,6 +369,10 @@
       "title": "Frame Dispositions",
       "type": "array"
     },
+    "full_curve_required": {
+      "title": "Full Curve Required",
+      "type": "boolean"
+    },
     "human_visual_review_status": {
       "enum": [
         "pending",
@@ -526,6 +530,7 @@
     "original_total_bytes",
     "fixed_webp",
     "matched_webp",
+    "full_curve_required",
     "photofold_package_bytes",
     "photofold_package_sha256",
     "storage",

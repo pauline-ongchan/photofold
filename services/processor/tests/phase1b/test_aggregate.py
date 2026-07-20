@@ -93,6 +93,13 @@ def test_continue_starts_at_ten_percent_and_two_wins() -> None:
     assert aggregate.recommendation == "CONTINUE COMPRESSION-FIRST"
 
 
+def test_best_and_worst_ties_use_dataset_id_order() -> None:
+    aggregate = build_aggregate(_results((10.0, 10.0, 10.0)), _review())
+
+    assert aggregate.best_dataset_id == "camera-motion-or-lighting"
+    assert aggregate.worst_dataset_id == "camera-motion-or-lighting"
+
+
 def test_below_five_and_two_losses_trigger_ordered_pivot_vetoes() -> None:
     aggregate = build_aggregate(_results((20.0, -1.0, -2.0)), _review())
 

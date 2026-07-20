@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -113,6 +114,11 @@ def test_collection_report_and_evidence_bound_review(tmp_path: Path) -> None:
     assert finalized["phase_pass"] is True
     assert finalized["report_verification"]["status"] == "pass"
     assert verify_phase1b_report(artifacts / "report.html")["status"] == "pass"
+    report = (artifacts / "report.html").read_text(encoding="utf-8")
+    assert "Ordered decision criteria" in report
+    assert "Original, reconstruction, heatmap, mask, and overlay inspected." in report
+    assert "lowest-SSIM frame inspected" in report
+    assert "Alignment evidence" in report
 
 
 def test_report_verifier_rejects_external_image_and_stale_review(tmp_path: Path) -> None:
@@ -147,8 +153,130 @@ def test_report_verifier_rejects_external_image_and_stale_review(tmp_path: Path)
         finalize_human_review(artifacts, review_path)
 
 
+def test_collection_failure_stops_before_any_encoding(tmp_path: Path) -> None:
+    datasets = _write_collection(tmp_path / "data")
+    manifest_path = datasets / "moving-subject/manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["id"] = "static-handheld"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    artifacts = tmp_path / "artifacts"
+
+    experiment = run_phase1b_experiment(
+        datasets,
+        REPOSITORY_ROOT / "configs/gate1.yaml",
+        artifacts,
+        matched_qualities=[1, 100],
+        require_full_curve=False,
+    )
+
+    assert experiment["status"] == "fail"
+    assert experiment["automated_pass"] is False
+    assert any("unique" in error.lower() for error in experiment["errors"])
+    assert not any(artifacts.glob("*/moment.photofold"))
+    assert experiment["report_verification"]["status"] == "pass"
+
+
+def test_report_verifier_recomputes_content_totals_and_package_listing(
+    tmp_path: Path,
+) -> None:
+    datasets = _write_collection(tmp_path / "data")
+    base_artifacts = tmp_path / "base-artifacts"
+    run_phase1b_experiment(
+        datasets,
+        REPOSITORY_ROOT / "configs/gate1.yaml",
+        base_artifacts,
+        matched_qualities=[1, 100],
+        require_full_curve=False,
+    )
+
+    missing_section = tmp_path / "missing-section"
+    shutil.copytree(base_artifacts, missing_section)
+    report_path = missing_section / "report.html"
+    report_path.write_text(
+        report_path.read_text(encoding="utf-8").replace(
+            'id="dataset-static-handheld"',
+            'id="removed-static-handheld"',
+            1,
+        ),
+        encoding="utf-8",
+    )
+    missing_result = verify_phase1b_report(report_path)
+    assert any("missing dataset section" in error for error in missing_result["errors"])
+
+    broken_image = tmp_path / "broken-image"
+    shutil.copytree(base_artifacts, broken_image)
+    report_path = broken_image / "report.html"
+    report_path.write_text(
+        report_path.read_text(encoding="utf-8").replace(
+            "data:image/webp;base64,",
+            "data:image/webp;base64,!!!!",
+            1,
+        ),
+        encoding="utf-8",
+    )
+    broken_result = verify_phase1b_report(report_path)
+    assert any("cannot be decoded" in error for error in broken_result["errors"])
+
+    missing_image = tmp_path / "missing-image"
+    shutil.copytree(base_artifacts, missing_image)
+    report_path = missing_image / "report.html"
+    report = report_path.read_text(encoding="utf-8")
+    image_start = report.index("<img ")
+    image_end = report.index(">", image_start) + 1
+    report_path.write_text(report[:image_start] + report[image_end:], encoding="utf-8")
+    missing_image_result = verify_phase1b_report(report_path)
+    assert any(
+        "embedded images" in error for error in missing_image_result["errors"]
+    )
+
+    inconsistent_storage = tmp_path / "inconsistent-storage"
+    shutil.copytree(base_artifacts, inconsistent_storage)
+    benchmark_path = inconsistent_storage / "static-handheld/benchmark.json"
+    benchmark = json.loads(benchmark_path.read_text(encoding="utf-8"))
+    benchmark["storage"]["versus_originals"]["signed_bytes_saved"] += 1
+    benchmark_path.write_text(json.dumps(benchmark), encoding="utf-8")
+    storage_result = verify_phase1b_report(inconsistent_storage / "report.html")
+    assert any("storage comparison" in error for error in storage_result["errors"])
+
+    inconsistent_total = tmp_path / "inconsistent-total"
+    shutil.copytree(base_artifacts, inconsistent_total)
+    aggregate_path = inconsistent_total / "aggregate.json"
+    aggregate = json.loads(aggregate_path.read_text(encoding="utf-8"))
+    aggregate["aggregate_original_bytes"] += 1
+    aggregate_path.write_text(json.dumps(aggregate), encoding="utf-8")
+    total_result = verify_phase1b_report(inconsistent_total / "report.html")
+    assert any("aggregate field" in error for error in total_result["errors"])
+
+    absent_member = tmp_path / "absent-member"
+    shutil.copytree(base_artifacts, absent_member)
+    benchmark_path = absent_member / "static-handheld/benchmark.json"
+    benchmark = json.loads(benchmark_path.read_text(encoding="utf-8"))
+    benchmark["package_members"].pop()
+    benchmark_path.write_text(json.dumps(benchmark), encoding="utf-8")
+    member_result = verify_phase1b_report(absent_member / "report.html")
+    assert any("package listing" in error for error in member_result["errors"])
+
+    wrong_recommendation = tmp_path / "wrong-recommendation"
+    shutil.copytree(base_artifacts, wrong_recommendation)
+    report_path = wrong_recommendation / "report.html"
+    report_path.write_text(
+        report_path.read_text(encoding="utf-8").replace(
+            'data-recommendation="PIVOT"',
+            'data-recommendation="INVESTIGATE"',
+            1,
+        ),
+        encoding="utf-8",
+    )
+    recommendation_result = verify_phase1b_report(report_path)
+    assert any(
+        "displayed recommendation" in error
+        for error in recommendation_result["errors"]
+    )
+
+
 def test_placeholder_scan_ignores_embedded_base64_payloads() -> None:
     assert _contains_placeholder(
         '<img src="data:image/webp;base64,QUJDVEJERUY=">'
     ) is False
     assert _contains_placeholder("<p>TODO</p>") is True
+    assert _contains_placeholder("<p>REPLACE_WITH reviewer</p>") is True

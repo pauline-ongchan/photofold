@@ -80,6 +80,22 @@ def test_matching_requires_every_frame_to_meet_both_metrics() -> None:
     assert point_qualifies(point, photofold) is False
 
 
+def test_matching_tolerances_are_exact_boundary_allowances() -> None:
+    point = _point(40, 100, [20] * 5)
+    at_boundary = [
+        {"index": index, "ssim": 0.900001, "psnr_db": 35.0001}
+        for index in range(5)
+    ]
+    outside_ssim = [dict(frame) for frame in at_boundary]
+    outside_ssim[1]["ssim"] += 1e-7
+    outside_psnr = [dict(frame) for frame in at_boundary]
+    outside_psnr[2]["psnr_db"] += 1e-5
+
+    assert point_qualifies(point, at_boundary) is True
+    assert point_qualifies(point, outside_ssim) is False
+    assert point_qualifies(point, outside_psnr) is False
+
+
 def test_selection_uses_total_quality_then_byte_vector() -> None:
     photofold = [
         {"index": index, "ssim": 0.8, "psnr_db": 30.0} for index in range(5)
@@ -91,6 +107,18 @@ def test_selection_uses_total_quality_then_byte_vector() -> None:
     ]
 
     assert select_matched_point(points, photofold).quality == 40
+
+    same_quality = [
+        _point(40, 100, [21, 20, 20, 20, 19]),
+        _point(40, 100, [20, 20, 20, 20, 20]),
+    ]
+    assert [frame.bytes for frame in select_matched_point(same_quality, photofold).per_frame] == [
+        20,
+        20,
+        20,
+        20,
+        20,
+    ]
 
 
 def test_exhaustive_sweep_covers_every_integer_quality() -> None:

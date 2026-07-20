@@ -115,6 +115,54 @@ def run_phase1b_experiment(
     artifacts.mkdir(parents=True, exist_ok=True)
     collection_validation = validate_phase1b_collection(datasets)
     _write_json(artifacts / "dataset-collection-validation.json", collection_validation)
+    if collection_validation["status"] != "pass":
+        results = {}
+        errors = list(collection_validation["errors"])
+        for dataset_id, validation in zip(
+            PHASE1B_DATASET_IDS,
+            collection_validation["datasets"],
+            strict=True,
+        ):
+            dataset_errors = list(validation.get("errors", []))
+            errors.extend(f"{dataset_id}: {error}" for error in dataset_errors)
+            result = {
+                "schema_version": "1.0",
+                "status": "fail",
+                "dataset_id": dataset_id,
+                "stage": "collection_validation",
+                "error": "strict Phase 1B collection validation failed",
+                "validation": validation,
+                "frame_dispositions": validation.get("frames", []),
+            }
+            results[dataset_id] = result
+            output = artifacts / dataset_id
+            output.mkdir(parents=True, exist_ok=True)
+            _write_json(output / "benchmark.json", result)
+
+        template_path = write_human_review_template(artifacts, results)
+        evidence = _write_aggregate_and_report(artifacts, results, None)
+        return {
+            "status": "fail",
+            "automated_pass": False,
+            "dataset_order": list(PHASE1B_DATASET_IDS),
+            "datasets": {
+                dataset_id: {
+                    "status": "fail",
+                    "machine_pass": False,
+                    "accepted_frame_count": 0,
+                    "reconstructed_frame_count": 0,
+                }
+                for dataset_id in PHASE1B_DATASET_IDS
+            },
+            "recommendation_before_human_review": evidence["aggregate"][
+                "recommendation"
+            ],
+            "human_review_status": "pending",
+            "human_review_template": str(template_path),
+            "report": evidence["report"],
+            "report_verification": evidence["report_verification"],
+            "errors": errors or ["strict Phase 1B collection validation failed"],
+        }
     results: dict[str, dict[str, Any]] = {}
     errors: list[str] = []
     for dataset_id in PHASE1B_DATASET_IDS:
