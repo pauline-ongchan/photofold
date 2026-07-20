@@ -2,23 +2,25 @@
 
 PhotoFold is a hackathon prototype exploring whether groups of similar photos can be stored as one shared scene plus frame-specific differences while retaining every frame.
 
-## Current status: Phase 1 compression proof
+## Current status: Phase 1B validation experiment
 
-This repository implements the Gate 0 foundation and the CLI-only Gate 1 compression proof:
+This repository implements the Gate 0 foundation, the CLI-only Gate 1 compression proof, and the machine-verifiable portion of the Phase 1B multi-dataset validation experiment:
 
 - a FastAPI `/v1/health` endpoint;
 - a CLI codec doctor and real-dataset validator;
 - a health-only Next.js status page;
 - generated OpenAPI and TypeScript contracts;
 - pinned local dependencies and validation commands; and
-- one documented, checksum-verified real HDR+ burst;
+- four documented, checksum-verified real bursts: the original Gate 1 set and three canonical Phase 1B scenarios;
 - deterministic reference selection and ORB/RANSAC alignment;
 - a WebP base plus cropped target-space WebP patches and lossless PNG masks;
 - a strict `.photofold` package validator and package-only decoder;
 - real archive-byte, RGB SSIM, difference-heatmap, and independent-WebP measurements; and
-- a self-contained offline HTML experiment report.
+- fixed-quality and exact quality-matched independent-WebP controls with per-frame RGB SSIM and PSNR;
+- deterministic all-dataset aggregation and recommendation rules; and
+- self-contained offline HTML experiment reports with artifact-bound human review records.
 
-There is intentionally no upload/product flow, processing API, job system, second/third dataset, or GPT integration yet. The Next.js page remains a health-only foundation page. Those capabilities belong to Phase 2 or later.
+The Phase 1B automated experiment passes for all three canonical datasets. Human visual review is still required before the Phase 1B recommendation becomes final. There is intentionally no upload/product flow, processing API, job system, GPT integration, or other Phase 2 work. The Next.js page remains a health-only foundation page.
 
 ## Prerequisites
 
@@ -106,6 +108,44 @@ The authoritative Gate 1 run measured 4,408,395 source bytes, a 677,744-byte `.p
 5. Inspect `benchmark.json`, `moment.photofold`, `package-inventory.json`, `package-verification.json`, `report-verification.json`, `sweep.json`, `reconstructions/`, `heatmaps/`, `masks/`, `alignment-overlays/`, and `exported-000.webp` under `artifacts/gate1/hdrplus-static/`. The explicit export command also writes `artifacts/gate1/exported-000.webp`.
 6. Fail the gate for any overall `FAIL`, broken image, missing frame, dimension/checksum/manifest/stat mismatch, below-threshold SSIM, package-size mismatch, non-matched control, or source-code inspection requirement.
 
+## Validate Phase 1B
+
+Run the fast deterministic checks during development:
+
+```bash
+make verify-phase1b-fast
+```
+
+Run the authoritative native-resolution experiment only for release/checkpoint evidence. It validates and processes all 42 frames, exhaustively searches WebP qualities 1 through 100 for every frame, verifies every closed package through the public decoder, and regenerates the self-contained report:
+
+```bash
+make verify-phase1b
+```
+
+The current authoritative automated run produced:
+
+| Dataset | Frames | PhotoFold | Matched WebP | Relational result |
+|---|---:|---:|---:|---:|
+| `static-handheld` | 15 | 8,722,761 bytes | 9,760,294 bytes | 10.6301% win |
+| `moving-subject` | 13 | 12,376,638 bytes | 11,840,364 bytes | 4.5292% loss |
+| `camera-motion-or-lighting` | 14 | 5,198,284 bytes | 7,572,022 bytes | 31.3488% win |
+
+Across the three datasets, PhotoFold used 26,297,683 bytes versus 29,172,680 bytes for the exact matched-quality controls. Median relational savings were 10.6301%, the weighted mean was 9.8551%, and the win/loss/tie count was 2/1/0. These values are generated from real artifacts and are not hard-coded into the application.
+
+The automated evidence is complete, but `aggregate.json` correctly records `phase_pass: false` and a provisional `PIVOT` while human visual review is pending. To perform that review:
+
+1. Open `artifacts/phase1b/report.html` with networking disabled and inspect every dataset, especially the preselected lowest-SSIM and lowest-PSNR frames.
+2. Copy `artifacts/phase1b/human-review-template.json` to `artifacts/phase1b/human-review.json`, record the reviewer, timestamp, per-dataset pass/fail decisions, notes, and complexity observations without changing the embedded evidence basis.
+3. Finalize the bound review:
+
+   ```bash
+   .venv/bin/python -m photofold.cli finalize-phase1b-review \
+     --artifacts artifacts/phase1b \
+     --review artifacts/phase1b/human-review.json
+   ```
+
+The finalizer rejects stale or edited evidence by checking the recorded artifact hashes before applying the ordered Phase 1B decision rules. See `docs/PHASE_1B_SPEC.md` and `docs/PHASE_1B_EXECUTION_PLAN.md` for the experiment contract and execution checkpoints.
+
 ## Manual development servers
 
 Processor:
@@ -125,6 +165,8 @@ npm run dev --workspace apps/web
 `data/demo/hdrplus-static` contains seven 1600×1200 JPEG derivatives from one real Google HDR+ mobile-camera burst. The originals were captured within one burst and are licensed CC BY-SA. Exact provenance, attribution, source object URLs, conversion settings, derivative checksums, and limitations are in `data/demo/README.md` and the dataset's `manifest.json`.
 
 This static natural scene is appropriate for validating repository plumbing and later low-motion experiments. It does not cover the expression, pose, or unique-entry scenarios required by Gate 2.
+
+`data/real-bursts/` contains the three canonical Phase 1B scenarios: `static-handheld`, `moving-subject`, and `camera-motion-or-lighting`. Their versioned manifests pin ordered source files, SHA-256 checksums, formats, dimensions, frame counts, provenance, and preparation metadata. The validator fails on any mismatch; it does not silently skip or normalize unexpected inputs during the benchmark.
 
 ## Technical contracts
 

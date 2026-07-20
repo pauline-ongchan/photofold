@@ -1,12 +1,14 @@
 # PhotoFold Implementation Plan
 
-**Status:** Phase 0 and the CLI-only Phase 1 are implemented and verified; Phase 2 and later remain proposed and unimplemented
+**Status:** Phase 0, the CLI-only Phase 1, and the automated Phase 1B validation experiment are implemented and verified; Phase 1B human review is pending; Phase 2 and later remain proposed and unimplemented
 **Source of truth:** `docs/PhotoFold_Developer_PRD.md`
 **Demo context only:** `docs/PhotoFold_Demo_Script.md`
 **Planning date:** 2026-07-18
 **Last Gate 0 verification:** 2026-07-18
 **Last Gate 1 experiment:** 2026-07-18
 **Last Gate 1 verification:** 2026-07-18
+**Last Phase 1B automated experiment:** 2026-07-19
+**Last Phase 1B report verification:** 2026-07-19
 
 ## 1. Purpose and operating principles
 
@@ -650,6 +652,54 @@ The independent q31 set has equal-or-better mean and minimum SSIM, so the compar
 - Relational savings are real but modest at 47,382 bytes (6.5343%) versus the matched control. Later codec/library versions or more difficult data can reverse the result, so Phase 2 must use regression ranges and additional curated sets.
 - The archive has 157 members. Component filtering and compact JSON make it viable for this experiment, but package overhead and patch grouping still need hardening.
 - Gate 1 remains a deterministic CLI experiment. There is no processing API, upload/product UI, persistence, job runner, or semantic provider.
+
+#### Phase 1B validation record — 2026-07-19
+
+**Status:** The strictly pre-Phase-2, multi-dataset validation experiment is implemented. Dataset validation, native-resolution processing, exact per-frame quality matching, package-only verification, aggregation, and report verification pass for all three canonical datasets. The artifact-bound human visual review is intentionally still pending, so the generated aggregate records `phase_pass: false` and a provisional `PIVOT`; no final Phase 1B recommendation is claimed yet.
+
+**Implemented scope**
+
+- Added three canonical, versioned real-burst manifests under `data/real-bursts/`: `static-handheld` (15 frames), `moving-subject` (13), and `camera-motion-or-lighting` (14). Validation checks the exact ordered files, SHA-256, byte counts, decoded formats, frame count, consistent native dimensions, provenance, and preparation metadata before processing.
+- Extracted the deterministic Gate 1 transform/package path into a shared treatment module while preserving Gate 1 behavior. Phase 1B catches structured alignment failures per frame and never substitutes a fabricated result.
+- Added RGB PSNR and exhaustive independent-WebP controls. For each frame, the matched control is the smallest quality from 1 through 100 whose SSIM and PSNR are both equal to or better than that frame's PhotoFold reconstruction; ties resolve to the lower quality. WebP quality 70 is also recorded as the fixed control.
+- Added one-dataset and all-dataset orchestration, typed result schemas, closed-archive stat accounting, package inventory/checksum verification, public package-only decoding of every frame, and raw timing separation for validation, treatment, controls, verification, reporting, and wall time.
+- Added deterministic per-dataset and aggregate metrics: original/fixed/matched/PhotoFold bytes, original and relational savings, per-frame quality, median and weighted relational savings, best/worst dataset, and win/loss/tie counts. Ordered decision rules are applied only after complete machine evidence and a current human review.
+- Added a self-contained `artifacts/phase1b/report.html` with all 210 original/reconstruction/heatmap/control previews embedded, dataset and aggregate tables, per-frame evidence, complete package listings, integrity checks, limitations, and review guidance. Its verifier reopens the source JSON and packages, checks all embedded images, and rejects external dependencies, missing sections, stale values, or placeholders.
+- Added `verify-phase1b-fast`, `verify-phase1b`, and `human-verify-phase1b` Make targets plus benchmark, report-verification, and review-finalization CLI commands. Tests retain the `/v1/health`-only API boundary.
+
+**Authoritative automated result**
+
+| Dataset | Frames | Original bytes | PhotoFold bytes | Matched WebP bytes | Relational savings | Machine result |
+|---|---:|---:|---:|---:|---:|---|
+| `static-handheld` | 15/15 | 46,659,071 | 8,722,761 | 9,760,294 | 10.6301% | Pass |
+| `moving-subject` | 13/13 | 25,331,644 | 12,376,638 | 11,840,364 | -4.5292% | Pass; relational loss retained |
+| `camera-motion-or-lighting` | 14/14 | 26,301,637 | 5,198,284 | 7,572,022 | 31.3488% | Pass |
+
+Aggregate source bytes are 98,292,352; PhotoFold bytes are 26,297,683; and matched-control bytes are 29,172,680. Median relational savings are 10.6301%, the weighted mean is 9.8551%, the best/worst results are 31.3488% and -4.5292%, and the win/loss/tie count is 2/1/0. All 42 accepted frames were reconstructed from their closed packages at the manifest-pinned dimensions. The moving-subject loss is preserved in the evidence and report rather than averaged away.
+
+**Validation commands and record**
+
+| Command | Result |
+|---|---|
+| `make verify-phase1b-fast` | Passed; 25 Phase 1B tests, contract generation check, and scope assertions passed. |
+| `make verify-phase1b` | Native-resolution processing, exhaustive controls, package-only verification, aggregation, and report generation completed for 42/42 frames. The final report verifier was rerun after correcting its placeholder audit to ignore opaque embedded image payload text and passed with 210/210 images and no errors. |
+| `.venv/bin/python -m photofold.cli verify-phase1b-report artifacts/phase1b/report.html --output artifacts/phase1b/report-verification.json` | Passed; all three source results and packages matched the rendered report, all embedded previews decoded, and no external dependency or visible placeholder was found. |
+| `make verify-gate1 DATASET=data/demo/hdrplus-static` | Passed after the shared treatment extraction with the exact prior 677,744-byte package, 725,126-byte matched control, 0.851131 mean SSIM, and 0.826471 minimum SSIM. |
+
+**Human checkpoint required before completion**
+
+1. Open `artifacts/phase1b/report.html` with networking disabled and inspect all three datasets, with deliberate attention to the report's preselected lowest-SSIM and lowest-PSNR frames, seams, ghosting, subject damage, and lighting transitions.
+2. Copy `artifacts/phase1b/human-review-template.json` to `artifacts/phase1b/human-review.json`. Fill in the reviewer, timestamp, pass/fail status and notes for each dataset, and complexity observations. Do not edit its evidence-basis hashes.
+3. Run `.venv/bin/python -m photofold.cli finalize-phase1b-review --artifacts artifacts/phase1b --review artifacts/phase1b/human-review.json`. The command rejects stale review input, recomputes the aggregate, applies the ordered decision rules, regenerates the report, and verifies it.
+4. Phase 1B is accepted only when the finalizer records a current human review, every machine and relational completeness check remains true, the report verifier passes, and the aggregate's recommendation follows the exact rules in `docs/PHASE_1B_SPEC.md`. A human failure is valid measured evidence and must not be overridden.
+
+**Boundary and remaining risks**
+
+- No Phase 2 route, processing service, product UI, job system, persistence, GPT/semantic integration, authentication, billing, database, queue, cloud infrastructure, additional codec, or multiple-base treatment was added.
+- The exhaustive native run is intentionally slow because it performs up to 100 real WebP encodes and two decoded quality comparisons per frame. Use `make verify-phase1b-fast` during development; reserve the full command for checkpoint evidence.
+- SSIM and PSNR do not replace visual inspection. The pending artifact-bound review is required to catch local seams, ghosting, or subject damage that whole-frame metrics can underweight.
+- The matched controls reached quality 70 on this corpus, so their byte totals equal the fixed q70 totals. This is a measured outcome, not a shortcut; every quality from 1 through 100 was still searched per frame.
+- Package overhead and the moving-subject relational loss remain first-class evidence for the Phase 1B recommendation. Fallbacks are limited to reporting/pivoting or a separately authorized future experiment; Phase 2 techniques must not be smuggled into this gate.
 
 ### Phase 2 / Gate 2A — Deterministic pipeline hardening
 

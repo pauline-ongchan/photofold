@@ -1,8 +1,8 @@
 # PhotoFold Phase 1B Specification
 
-**Status:** Approved requirements; not implemented  
-**Phase:** Phase 1B — multi-dataset validation of the compression hypothesis  
-**Authority:** `docs/PhotoFold_Developer_PRD.md`, `docs/IMPLEMENTATION_PLAN.md`, and `docs/TECHNICAL_CONTRACTS.md`  
+**Status:** Automated implementation complete; artifact-bound human acceptance pending
+**Phase:** Phase 1B — multi-dataset validation of the compression hypothesis
+**Authority:** `docs/PhotoFold_Developer_PRD.md`, `docs/IMPLEMENTATION_PLAN.md`, and `docs/TECHNICAL_CONTRACTS.md`
 **Implementation boundary:** Deterministic CLI benchmark and offline evidence only
 
 ## 1. Purpose
