@@ -1,0 +1,473 @@
+{
+  "$defs": {
+    "FrameArtifacts": {
+      "additionalProperties": false,
+      "properties": {
+        "difference": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Difference"
+        },
+        "original": {
+          "title": "Original",
+          "type": "string"
+        },
+        "reconstruction": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reconstruction"
+        }
+      },
+      "required": [
+        "original"
+      ],
+      "title": "FrameArtifacts",
+      "type": "object"
+    },
+    "PackageContents": {
+      "additionalProperties": false,
+      "properties": {
+        "frame_count": {
+          "maximum": 20,
+          "minimum": 5,
+          "title": "Frame Count",
+          "type": "integer"
+        },
+        "mask_count": {
+          "minimum": 0,
+          "title": "Mask Count",
+          "type": "integer"
+        },
+        "member_count": {
+          "exclusiveMinimum": 0,
+          "title": "Member Count",
+          "type": "integer"
+        },
+        "member_payload_bytes": {
+          "exclusiveMinimum": 0,
+          "title": "Member Payload Bytes",
+          "type": "integer"
+        },
+        "metadata_count": {
+          "minimum": 0,
+          "title": "Metadata Count",
+          "type": "integer"
+        },
+        "patch_count": {
+          "minimum": 0,
+          "title": "Patch Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "member_count",
+        "frame_count",
+        "patch_count",
+        "mask_count",
+        "metadata_count",
+        "member_payload_bytes"
+      ],
+      "title": "PackageContents",
+      "type": "object"
+    },
+    "PrototypeError": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "debug": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Debug"
+        },
+        "frame_indices": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Frame Indices",
+          "type": "array"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "retryable": {
+          "default": false,
+          "title": "Retryable",
+          "type": "boolean"
+        },
+        "stage": {
+          "minLength": 1,
+          "title": "Stage",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "stage"
+      ],
+      "title": "PrototypeError",
+      "type": "object"
+    },
+    "PrototypeFrameResult": {
+      "additionalProperties": false,
+      "properties": {
+        "artifacts": {
+          "$ref": "#/$defs/FrameArtifacts"
+        },
+        "changed_region_percent": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Changed Region Percent"
+        },
+        "height": {
+          "exclusiveMinimum": 0,
+          "title": "Height",
+          "type": "integer"
+        },
+        "index": {
+          "maximum": 19,
+          "minimum": 0,
+          "title": "Index",
+          "type": "integer"
+        },
+        "original_bytes": {
+          "exclusiveMinimum": 0,
+          "title": "Original Bytes",
+          "type": "integer"
+        },
+        "original_filename": {
+          "title": "Original Filename",
+          "type": "string"
+        },
+        "patch_count": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Patch Count"
+        },
+        "quality_threshold_pass": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quality Threshold Pass"
+        },
+        "reconstructed": {
+          "title": "Reconstructed",
+          "type": "boolean"
+        },
+        "shared_region_percent": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Shared Region Percent"
+        },
+        "ssim": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": -1,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ssim"
+        },
+        "width": {
+          "exclusiveMinimum": 0,
+          "title": "Width",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "index",
+        "original_filename",
+        "width",
+        "height",
+        "original_bytes",
+        "reconstructed",
+        "artifacts"
+      ],
+      "title": "PrototypeFrameResult",
+      "type": "object"
+    },
+    "QualityResult": {
+      "additionalProperties": false,
+      "properties": {
+        "mean_ssim": {
+          "maximum": 1,
+          "minimum": -1,
+          "title": "Mean Ssim",
+          "type": "number"
+        },
+        "min_mean_threshold": {
+          "maximum": 1,
+          "minimum": -1,
+          "title": "Min Mean Threshold",
+          "type": "number"
+        },
+        "min_per_frame_threshold": {
+          "maximum": 1,
+          "minimum": -1,
+          "title": "Min Per Frame Threshold",
+          "type": "number"
+        },
+        "minimum_ssim": {
+          "maximum": 1,
+          "minimum": -1,
+          "title": "Minimum Ssim",
+          "type": "number"
+        },
+        "threshold_pass": {
+          "title": "Threshold Pass",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "mean_ssim",
+        "minimum_ssim",
+        "min_mean_threshold",
+        "min_per_frame_threshold",
+        "threshold_pass"
+      ],
+      "title": "QualityResult",
+      "type": "object"
+    },
+    "StorageResult": {
+      "additionalProperties": false,
+      "properties": {
+        "byte_delta": {
+          "title": "Byte Delta",
+          "type": "integer"
+        },
+        "bytes_saved": {
+          "minimum": 0,
+          "title": "Bytes Saved",
+          "type": "integer"
+        },
+        "is_smaller_than_originals": {
+          "title": "Is Smaller Than Originals",
+          "type": "boolean"
+        },
+        "original_total_bytes": {
+          "exclusiveMinimum": 0,
+          "title": "Original Total Bytes",
+          "type": "integer"
+        },
+        "package_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Package Sha256",
+          "type": "string"
+        },
+        "package_total_bytes": {
+          "exclusiveMinimum": 0,
+          "title": "Package Total Bytes",
+          "type": "integer"
+        },
+        "percent_change": {
+          "title": "Percent Change",
+          "type": "number"
+        },
+        "percent_saved": {
+          "minimum": 0,
+          "title": "Percent Saved",
+          "type": "number"
+        }
+      },
+      "required": [
+        "original_total_bytes",
+        "package_total_bytes",
+        "package_sha256",
+        "byte_delta",
+        "percent_change",
+        "bytes_saved",
+        "percent_saved",
+        "is_smaller_than_originals"
+      ],
+      "title": "StorageResult",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "completed_at": {
+      "format": "date-time",
+      "title": "Completed At",
+      "type": "string"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PrototypeError"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "frames": {
+      "items": {
+        "$ref": "#/$defs/PrototypeFrameResult"
+      },
+      "maxItems": 20,
+      "minItems": 5,
+      "title": "Frames",
+      "type": "array"
+    },
+    "package_artifact": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Package Artifact"
+    },
+    "package_contents": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PackageContents"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "quality": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/QualityResult"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reconstructed_frame_count": {
+      "maximum": 20,
+      "minimum": 0,
+      "title": "Reconstructed Frame Count",
+      "type": "integer"
+    },
+    "reference_frame_index": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Reference Frame Index"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "complete",
+        "complete_no_savings",
+        "failed_quality",
+        "failed"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "storage": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/StorageResult"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "completed_at",
+    "status",
+    "reference_frame_index",
+    "reconstructed_frame_count",
+    "storage",
+    "quality",
+    "frames",
+    "package_contents",
+    "package_artifact",
+    "warnings"
+  ],
+  "title": "PrototypeResult",
+  "type": "object"
+}

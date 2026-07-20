@@ -1,0 +1,66 @@
+{
+  "$defs": {
+    "PrototypeError": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "debug": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Debug"
+        },
+        "frame_indices": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Frame Indices",
+          "type": "array"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "retryable": {
+          "default": false,
+          "title": "Retryable",
+          "type": "boolean"
+        },
+        "stage": {
+          "minLength": 1,
+          "title": "Stage",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "stage"
+      ],
+      "title": "PrototypeError",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "error": {
+      "$ref": "#/$defs/PrototypeError"
+    }
+  },
+  "required": [
+    "error"
+  ],
+  "title": "ErrorEnvelope",
+  "type": "object"
+}

@@ -35,6 +35,38 @@ if (phase1b.status !== 0) {
   process.exit(phase1b.status ?? 1);
 }
 
+const prototype = spawnSync(
+  ".venv/bin/python",
+  [
+    "-m",
+    "photofold.cli",
+    "export-prototype-schemas",
+    "--output-directory",
+    "packages/contracts",
+  ],
+  { stdio: "inherit" },
+);
+
+if (prototype.status !== 0) {
+  process.exit(prototype.status ?? 1);
+}
+
+for (const name of ["prototype-analysis", "prototype-result", "prototype-error"]) {
+  const types = spawnSync(
+    "node_modules/.bin/json2ts",
+    [
+      "--input",
+      `packages/contracts/${name}.schema.json`,
+      "--output",
+      `packages/contracts/src/${name}.ts`,
+      "--bannerComment",
+      "/* Generated from the processor-owned Pydantic schema. Do not edit. */",
+    ],
+    { stdio: "inherit" },
+  );
+  if (types.status !== 0) process.exit(types.status ?? 1);
+}
+
 const generator = spawnSync(
   "node_modules/.bin/openapi-typescript",
   [

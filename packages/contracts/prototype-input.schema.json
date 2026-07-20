@@ -1,0 +1,56 @@
+{
+  "$defs": {
+    "PrototypeInputFrame": {
+      "additionalProperties": false,
+      "properties": {
+        "index": {
+          "maximum": 19,
+          "minimum": 0,
+          "title": "Index",
+          "type": "integer"
+        },
+        "original_filename": {
+          "maxLength": 255,
+          "minLength": 1,
+          "title": "Original Filename",
+          "type": "string"
+        },
+        "stored_filename": {
+          "pattern": "^frame-[0-9]{3}\\.upload$",
+          "title": "Stored Filename",
+          "type": "string"
+        }
+      },
+      "required": [
+        "index",
+        "original_filename",
+        "stored_filename"
+      ],
+      "title": "PrototypeInputFrame",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "frames": {
+      "items": {
+        "$ref": "#/$defs/PrototypeInputFrame"
+      },
+      "maxItems": 20,
+      "minItems": 5,
+      "title": "Frames",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "frames"
+  ],
+  "title": "PrototypeInput",
+  "type": "object"
+}

@@ -4,13 +4,19 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/generated.ts"
+    ".": "./src/generated.ts",
+    "./prototype-analysis": "./src/prototype-analysis.ts",
+    "./prototype-result": "./src/prototype-result.ts",
+    "./prototype-error": "./src/prototype-error.ts",
+    "./schemas/prototype-analysis": "./prototype-analysis.schema.json",
+    "./schemas/prototype-result": "./prototype-result.schema.json",
+    "./schemas/prototype-error": "./prototype-error.schema.json"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
+    "json-schema-to-typescript": "^15.0.4",
     "typescript": "5.9.3"
   }
 }
-
