@@ -16,7 +16,7 @@ from photofold.phase1b.experiment import (
     finalize_human_review,
     run_phase1b_experiment,
 )
-from photofold.phase1b.report import verify_phase1b_report
+from photofold.phase1b.report import _contains_placeholder, verify_phase1b_report
 
 
 def _write_collection(root: Path) -> Path:
@@ -145,3 +145,10 @@ def test_report_verifier_rejects_external_image_and_stale_review(tmp_path: Path)
     review_path.write_text(json.dumps(review), encoding="utf-8")
     with pytest.raises(Phase1BReviewError, match="stale"):
         finalize_human_review(artifacts, review_path)
+
+
+def test_placeholder_scan_ignores_embedded_base64_payloads() -> None:
+    assert _contains_placeholder(
+        '<img src="data:image/webp;base64,QUJDVEJERUY=">'
+    ) is False
+    assert _contains_placeholder("<p>TODO</p>") is True

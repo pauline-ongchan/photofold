@@ -394,6 +394,15 @@ def _decode_embedded_images(document: str) -> tuple[int, list[str]]:
     return len(sources), errors
 
 
+def _contains_placeholder(document: str) -> bool:
+    scrubbed = re.sub(
+        r"data:image/[^;\"']+;base64,[A-Za-z0-9+/=]+",
+        "data:image/embedded;base64,REDACTED",
+        document,
+    )
+    return bool(re.search(r"\b(?:TODO|TBD|PLACEHOLDER)\b", scrubbed, flags=re.IGNORECASE))
+
+
 def verify_phase1b_report(report: str | Path) -> dict[str, Any]:
     report_path = Path(report).expanduser().resolve()
     root = report_path.parent
@@ -483,7 +492,7 @@ def verify_phase1b_report(report: str | Path) -> dict[str, Any]:
         errors.append(f"expected {expected_images} embedded images, found {image_count}")
     if re.search(r'<(?:img|script|link)[^>]+(?:src|href)="(?!data:|#)', document):
         errors.append("report contains an external dependency")
-    if re.search(r"\b(?:TODO|TBD|PLACEHOLDER)\b", document, flags=re.IGNORECASE):
+    if _contains_placeholder(document):
         errors.append("report contains a blank or hard-coded placeholder")
     recommendation_marker = f'data-recommendation="{html.escape(aggregate.recommendation, quote=True)}"'
     if recommendation_marker not in document:
