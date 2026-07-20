@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "id": "moving-subject",
+  "title": "Moving subject bottle burst",
+  "scenario_category": "moving-subject",
+  "provenance": {
+    "source": "Project-owner supplied iPhone 16 capture",
+    "capture_date": "2026-07-19",
+    "device": "Apple iPhone 16",
+    "authorization": "Owner-authorized local PhotoFold experiment input"
+  },
+  "consent": {
+    "basis": "project_owner_authorization",
+    "identifiable_people_visible": false,
+    "notes": "No identifiable face is visible; a hand appears in the frames."
+  },
+  "license": {
+    "id": "private-project-use",
+    "redistribution_permitted": false,
+    "notes": "Local experiment use only; original files and embedded EXIF/GPS metadata are not committed."
+  },
+  "capture_notes": [
+    "Thirteen handheld portrait frames of a bottle held outdoors with hand and bottle motion."
+  ],
+  "known_limitations": [
+    "Foreground hand and bottle move relative to a detailed outdoor background."
+  ],
+  "expected_frame_count": 13,
+  "expected_dimensions": {
+    "width": 3024,
+    "height": 4032
+  },
+  "files": [
+    { "path": "IMG_8419.jpg", "sha256": "e5ac246376322e9a9fd0ef5d1cd321f2dd4ae9fd53c31ead0d70962e09666bcb" },
+    { "path": "IMG_8420.jpg", "sha256": "cc5a5e590c95518cfcbe0c62cefeacd60a9428dae374f48da5d34dbe41a88a14" },
+    { "path": "IMG_8421.jpg", "sha256": "47a7692c2748e4bc322b8d8d5e3e4a269dbb5f1cf456a68c84d3c0bb8577732b" },
+    { "path": "IMG_8422.jpg", "sha256": "954fa5411a540e0294bdd41b7c241e249ff75dc1dc980f3c5cc0cf2e43e6853b" },
+    { "path": "IMG_8423.jpg", "sha256": "0dbcddb720281b2db1a1deb0b46999e6c45e49cf7eba1e3bedd379beeba6ac47" },
+    { "path": "IMG_8424.jpg", "sha256": "8ae3ac1e87415e8248124d4e1fa9827074b7b0493d0063fdb47aeac6c6ddea50" },
+    { "path": "IMG_8425.jpg", "sha256": "739233daafc715d9e8e9d94b5383a7ca2223a3cdd0a3128af917fa309fb7864a" },
+    { "path": "IMG_8426.jpg", "sha256": "53c64efd62068c648c31b731941b5dc88c25b245d5263f939b7459cee2611158" },
+    { "path": "IMG_8427.jpg", "sha256": "dbb20699425f5eff6660a7e12004726c3b8033952c9a7a88776cb4005e0ca529" },
+    { "path": "IMG_8428.jpg", "sha256": "2cd1ef12903a8963b5d2b4795169d82fba7775e50b7c204ac926ef89be8640a0" },
+    { "path": "IMG_8429.jpg", "sha256": "cfb46439b742cb8d27e92a92a55789f9fd2d0befa11d88c81b9e3469684d4d31" },
+    { "path": "IMG_8430.jpg", "sha256": "26e88331feb30ecf2238c835a08501e7d5e1425b6fc55660c2743b4b95cb76e5" },
+    { "path": "IMG_8431.jpg", "sha256": "5a942980731b56d68a8d0817928d025558335f519c22d9fb677e9ee3e08a36cd" }
+  ]
+}

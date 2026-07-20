@@ -19,6 +19,22 @@ if (python.status !== 0) {
   process.exit(python.status ?? 1);
 }
 
+const phase1b = spawnSync(
+  ".venv/bin/python",
+  [
+    "-m",
+    "photofold.cli",
+    "export-phase1b-schemas",
+    "--output-directory",
+    "packages/contracts",
+  ],
+  { stdio: "inherit" },
+);
+
+if (phase1b.status !== 0) {
+  process.exit(phase1b.status ?? 1);
+}
+
 const generator = spawnSync(
   "node_modules/.bin/openapi-typescript",
   [
@@ -30,4 +46,3 @@ const generator = spawnSync(
 );
 
 process.exit(generator.status ?? 1);
-

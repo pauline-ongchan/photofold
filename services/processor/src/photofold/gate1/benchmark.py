@@ -10,12 +10,10 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-import yaml
 
 from photofold.dataset import validate_dataset
-from photofold.gate1.alignment import select_reference_and_align, warp_reference
+from photofold.gate1.alignment import select_reference_and_align
 from photofold.gate1.bundle import (
-    build_package,
     decode_all_package_frames,
     export_package_frame,
     verify_package,
@@ -31,32 +29,12 @@ from photofold.gate1.images import (
     write_rgb_png,
 )
 from photofold.gate1.report import generate_report
-
-
-def _load_config(path: Path) -> tuple[dict[str, Any], str]:
-    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict):
-        raise ValueError("Gate 1 config must be a YAML object")
-    return payload, sha256_file(path)
-
-
-def _parameters(config: dict[str, Any]) -> dict[str, int]:
-    selected = config.get("selected", {})
-    quality_sweep = config["codec"]["quality_sweep"]
-    threshold_sweep = config["change_mask"]["pixel_threshold_sweep"]
-    dilation_sweep = config["change_mask"]["dilation_radius_sweep"]
-    feather_sweep = config["change_mask"]["feather_radius_sweep"]
-    return {
-        "base_quality": int(selected.get("base_quality", quality_sweep[1])),
-        "patch_quality": int(selected.get("patch_quality", quality_sweep[1])),
-        "pixel_threshold": int(selected.get("pixel_threshold", threshold_sweep[-1])),
-        "dilation_radius": int(selected.get("dilation_radius", dilation_sweep[0])),
-        "feather_radius": int(selected.get("feather_radius", feather_sweep[0])),
-        "minimum_component_area": int(selected.get("minimum_component_area", 256)),
-        "tile_size": int(selected.get("tile_size", 384)),
-        "patch_margin": int(selected.get("patch_margin", 2)),
-        "maximum_patches_per_frame": int(selected.get("maximum_patches_per_frame", 64)),
-    }
+from photofold.gate1.treatment import (
+    build_treatment_package,
+    load_gate1_config,
+    selected_parameters,
+    write_alignment_overlays,
+)
 
 
 def _control_curve(images: list[np.ndarray], qualities: list[int]) -> list[dict[str, Any]]:
@@ -121,13 +99,11 @@ def _trial(
     control_curve: list[dict[str, Any]],
     package_path: Path,
 ) -> dict[str, Any]:
-    package = build_package(
+    package = build_treatment_package(
         images=images,
         filenames=filenames,
-        reference_index=alignment["reference_frame_index"],
-        transforms=alignment["transforms"],
+        alignment=alignment,
         parameters=parameters,
-        analysis={key: value for key, value in alignment.items() if key != "transforms"},
         original_total_bytes=original_total_bytes,
         output_path=package_path,
     )
@@ -182,25 +158,6 @@ def _sweep_variants(
     return variants
 
 
-def _write_alignment_overlays(
-    output_directory: Path,
-    images: list[np.ndarray],
-    reference_index: int,
-    transforms: list[dict[str, Any]],
-) -> None:
-    reference = images[reference_index]
-    height, width = reference.shape[:2]
-    for index, target in enumerate(images):
-        warped, _ = warp_reference(reference, transforms[index]["matrix"], width, height)
-        overlay = np.empty_like(target)
-        overlay[..., 0] = target[..., 0]
-        overlay[..., 1] = warped[..., 1]
-        overlay[..., 2] = ((target[..., 2].astype(np.uint16) + warped[..., 2]) // 2).astype(
-            np.uint8
-        )
-        write_rgb_png(output_directory / "alignment-overlays" / f"frame-{index:03d}.png", overlay)
-
-
 def _prepare_output(output_directory: Path) -> None:
     output_directory.mkdir(parents=True, exist_ok=True)
     for directory in ["reconstructions", "heatmaps", "masks", "alignment-overlays"]:
@@ -233,8 +190,8 @@ def run_benchmark(
     output_directory = Path(output_path).resolve()
     _prepare_output(output_directory)
     dataset = validate_dataset(dataset_directory)
-    config, config_sha256 = _load_config(config_file)
-    selected = _parameters(config)
+    config, config_sha256 = load_gate1_config(config_file)
+    selected = selected_parameters(config)
     filenames = [frame["path"] for frame in dataset["frames"]]
     images = [load_rgb(dataset_directory / filename) for filename in filenames]
     alignment = select_reference_and_align(images)
@@ -312,7 +269,7 @@ def run_benchmark(
     storage_reduction_pass = package_total_bytes < dataset["total_bytes"]
     relational_hypothesis_pass = selected_trial["control_matched"] and relational_gain_bytes > 0
 
-    _write_alignment_overlays(
+    write_alignment_overlays(
         output_directory,
         images,
         alignment["reference_frame_index"],

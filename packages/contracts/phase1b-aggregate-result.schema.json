@@ -1,0 +1,406 @@
+{
+  "$defs": {
+    "DatasetAggregateSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "accepted_frame_count": {
+          "minimum": 0,
+          "title": "Accepted Frame Count",
+          "type": "integer"
+        },
+        "dataset_id": {
+          "title": "Dataset Id",
+          "type": "string"
+        },
+        "dataset_status": {
+          "enum": [
+            "pass",
+            "fail"
+          ],
+          "title": "Dataset Status",
+          "type": "string"
+        },
+        "fixed_webp_total_bytes": {
+          "minimum": 0,
+          "title": "Fixed Webp Total Bytes",
+          "type": "integer"
+        },
+        "machine_pass": {
+          "title": "Machine Pass",
+          "type": "boolean"
+        },
+        "matched_status": {
+          "enum": [
+            "matched",
+            "unmatched",
+            "not-run"
+          ],
+          "title": "Matched Status",
+          "type": "string"
+        },
+        "matched_webp_total_bytes": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Matched Webp Total Bytes"
+        },
+        "original_total_bytes": {
+          "minimum": 0,
+          "title": "Original Total Bytes",
+          "type": "integer"
+        },
+        "photofold_package_bytes": {
+          "minimum": 0,
+          "title": "Photofold Package Bytes",
+          "type": "integer"
+        },
+        "reconstructed_frame_count": {
+          "minimum": 0,
+          "title": "Reconstructed Frame Count",
+          "type": "integer"
+        },
+        "relational_savings_percent": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Relational Savings Percent"
+        }
+      },
+      "required": [
+        "dataset_id",
+        "dataset_status",
+        "matched_status",
+        "relational_savings_percent",
+        "original_total_bytes",
+        "fixed_webp_total_bytes",
+        "photofold_package_bytes",
+        "accepted_frame_count",
+        "reconstructed_frame_count",
+        "machine_pass"
+      ],
+      "title": "DatasetAggregateSummary",
+      "type": "object"
+    },
+    "HumanDatasetReview": {
+      "additionalProperties": false,
+      "properties": {
+        "lowest_psnr_frame_inspected": {
+          "minimum": 0,
+          "title": "Lowest Psnr Frame Inspected",
+          "type": "integer"
+        },
+        "lowest_ssim_frame_inspected": {
+          "minimum": 0,
+          "title": "Lowest Ssim Frame Inspected",
+          "type": "integer"
+        },
+        "notes": {
+          "minLength": 1,
+          "title": "Notes",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "pass",
+            "fail"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "notes",
+        "lowest_ssim_frame_inspected",
+        "lowest_psnr_frame_inspected"
+      ],
+      "title": "HumanDatasetReview",
+      "type": "object"
+    },
+    "HumanReview": {
+      "additionalProperties": false,
+      "properties": {
+        "complexity_disproportionate": {
+          "title": "Complexity Disproportionate",
+          "type": "boolean"
+        },
+        "complexity_notes": {
+          "title": "Complexity Notes",
+          "type": "string"
+        },
+        "datasets": {
+          "additionalProperties": {
+            "$ref": "#/$defs/HumanDatasetReview"
+          },
+          "title": "Datasets",
+          "type": "object"
+        },
+        "review_basis_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Review Basis Sha256",
+          "type": "string"
+        },
+        "reviewed_at": {
+          "format": "date-time",
+          "title": "Reviewed At",
+          "type": "string"
+        },
+        "reviewer": {
+          "minLength": 1,
+          "title": "Reviewer",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "review_basis_sha256",
+        "reviewer",
+        "reviewed_at",
+        "datasets",
+        "complexity_disproportionate",
+        "complexity_notes"
+      ],
+      "title": "HumanReview",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "aggregate_fixed_webp_bytes": {
+      "minimum": 0,
+      "title": "Aggregate Fixed Webp Bytes",
+      "type": "integer"
+    },
+    "aggregate_matched_webp_bytes": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Aggregate Matched Webp Bytes"
+    },
+    "aggregate_original_bytes": {
+      "minimum": 0,
+      "title": "Aggregate Original Bytes",
+      "type": "integer"
+    },
+    "aggregate_photofold_bytes": {
+      "minimum": 0,
+      "title": "Aggregate Photofold Bytes",
+      "type": "integer"
+    },
+    "best_dataset_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Best Dataset Id"
+    },
+    "best_relational_savings_percent": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Best Relational Savings Percent"
+    },
+    "dataset_order": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 3,
+      "minItems": 3,
+      "title": "Dataset Order",
+      "type": "array"
+    },
+    "datasets": {
+      "items": {
+        "$ref": "#/$defs/DatasetAggregateSummary"
+      },
+      "maxItems": 3,
+      "minItems": 3,
+      "title": "Datasets",
+      "type": "array"
+    },
+    "failed_checks": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Failed Checks",
+      "type": "array"
+    },
+    "generated_at": {
+      "format": "date-time",
+      "title": "Generated At",
+      "type": "string"
+    },
+    "human_review": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/HumanReview"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "loss_count": {
+      "maximum": 3,
+      "minimum": 0,
+      "title": "Loss Count",
+      "type": "integer"
+    },
+    "median_relational_savings_percent": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Median Relational Savings Percent"
+    },
+    "phase_pass": {
+      "title": "Phase Pass",
+      "type": "boolean"
+    },
+    "recommendation": {
+      "enum": [
+        "CONTINUE COMPRESSION-FIRST",
+        "INVESTIGATE",
+        "PIVOT"
+      ],
+      "title": "Recommendation",
+      "type": "string"
+    },
+    "recommendation_reasons": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Recommendation Reasons",
+      "type": "array"
+    },
+    "relational_evidence_complete": {
+      "title": "Relational Evidence Complete",
+      "type": "boolean"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "tie_count": {
+      "maximum": 3,
+      "minimum": 0,
+      "title": "Tie Count",
+      "type": "integer"
+    },
+    "total_accepted_frames": {
+      "minimum": 0,
+      "title": "Total Accepted Frames",
+      "type": "integer"
+    },
+    "total_reconstructed_frames": {
+      "minimum": 0,
+      "title": "Total Reconstructed Frames",
+      "type": "integer"
+    },
+    "weighted_mean_relational_savings_percent": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Weighted Mean Relational Savings Percent"
+    },
+    "win_count": {
+      "maximum": 3,
+      "minimum": 0,
+      "title": "Win Count",
+      "type": "integer"
+    },
+    "worst_dataset_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Worst Dataset Id"
+    },
+    "worst_relational_savings_percent": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Worst Relational Savings Percent"
+    }
+  },
+  "required": [
+    "schema_version",
+    "generated_at",
+    "dataset_order",
+    "datasets",
+    "aggregate_original_bytes",
+    "aggregate_fixed_webp_bytes",
+    "aggregate_photofold_bytes",
+    "median_relational_savings_percent",
+    "weighted_mean_relational_savings_percent",
+    "best_dataset_id",
+    "best_relational_savings_percent",
+    "worst_dataset_id",
+    "worst_relational_savings_percent",
+    "win_count",
+    "loss_count",
+    "tie_count",
+    "total_accepted_frames",
+    "total_reconstructed_frames",
+    "relational_evidence_complete",
+    "human_review",
+    "recommendation",
+    "recommendation_reasons",
+    "phase_pass",
+    "failed_checks"
+  ],
+  "title": "Phase1BAggregateResult",
+  "type": "object"
+}

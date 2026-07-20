@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0",
+  "id": "static-handheld",
+  "title": "Static handheld bottle burst",
+  "scenario_category": "static-handheld",
+  "provenance": {
+    "source": "Project-owner supplied iPhone 16 capture",
+    "capture_date": "2026-07-19",
+    "device": "Apple iPhone 16",
+    "authorization": "Owner-authorized local PhotoFold experiment input"
+  },
+  "consent": {
+    "basis": "project_owner_authorization",
+    "identifiable_people_visible": false,
+    "notes": "No identifiable person is visible."
+  },
+  "license": {
+    "id": "private-project-use",
+    "redistribution_permitted": false,
+    "notes": "Local experiment use only; original files and embedded EXIF/GPS metadata are not committed."
+  },
+  "capture_notes": [
+    "Fifteen handheld portrait frames of a stationary bottle against an indoor cabinet."
+  ],
+  "known_limitations": [
+    "Minor handheld motion and exposure variation."
+  ],
+  "expected_frame_count": 15,
+  "expected_dimensions": {
+    "width": 3024,
+    "height": 4032
+  },
+  "files": [
+    { "path": "IMG_8489.JPG", "sha256": "d9c02461fe497c2b408530f834156b3fdb0d994a975eb5be39649fa5b24ea533" },
+    { "path": "IMG_8490.JPG", "sha256": "faeb3a54b6e3cf0433d0b29ab9c3c94d7359fcab7f8e183091dd8aca25c0346b" },
+    { "path": "IMG_8491.JPG", "sha256": "31ba8bfb7fe366b146f8d1813fc08f2c96320f656167d4b95d965fa29447eab4" },
+    { "path": "IMG_8492.JPG", "sha256": "144fad7b3ede41092ff85a2bf19a11a0f44f197ff4900c02a1c00d74b3b168fa" },
+    { "path": "IMG_8493.JPG", "sha256": "14af29936710d918e7d62d9f2886b0484e876837150d7942ce43bed7cb6afc15" },
+    { "path": "IMG_8494.JPG", "sha256": "a5174323a1cc86e97c307ce578aa15305cf842b6806fcca70aba7a9570baa072" },
+    { "path": "IMG_8495.JPG", "sha256": "b58f026f532e0eb82059040274e371b2ebb12e0c76f1921c2f097246bdd4f759" },
+    { "path": "IMG_8496.JPG", "sha256": "831172888a0af6ede39bedfe0994c1ef26faf6160025346e10829b17a1c1e62b" },
+    { "path": "IMG_8497.JPG", "sha256": "06276eaa40c156eeb5094c04fd1c6aca028301756d0bbcad48382a986b9ef0ba" },
+    { "path": "IMG_8498.JPG", "sha256": "7e469ebe8bc26f4bda2cab110d954519d0e562df97417dc85f810a914bb89105" },
+    { "path": "IMG_8499.JPG", "sha256": "2af109c4e91bfb9d08a9a4bc23a7746ceecaaaaa26400245d692391afa6d6547" },
+    { "path": "IMG_8500.JPG", "sha256": "e8dd9ff7051cff24355395d54fa68e1e02cffac2c16421d7325d20fdf8c4ffb4" },
+    { "path": "IMG_8501.JPG", "sha256": "bdfaca439662f1c324f035e4104f92bd6506c4074fde86bf2ead3e4e53692809" },
+    { "path": "IMG_8502.JPG", "sha256": "bb6d20885c539f0a0600c3d6fc85dbbeb1e4eb44977c8f3fe2ee1d5448ab8ede" },
+    { "path": "IMG_8503.JPG", "sha256": "04013e5ae2e4e9c3c50b832099be4a383991104c187322dee9cbb2ce6e77fd8e" }
+  ]
+}

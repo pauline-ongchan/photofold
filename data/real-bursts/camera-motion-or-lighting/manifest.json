@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "id": "camera-motion-or-lighting",
+  "title": "Camera motion or lighting bottle burst",
+  "scenario_category": "camera-motion-or-lighting",
+  "provenance": {
+    "source": "Project-owner supplied iPhone 16 capture",
+    "capture_date": "2026-07-19",
+    "device": "Apple iPhone 16",
+    "authorization": "Owner-authorized local PhotoFold experiment input"
+  },
+  "consent": {
+    "basis": "project_owner_authorization",
+    "identifiable_people_visible": false,
+    "notes": "No identifiable person is visible."
+  },
+  "license": {
+    "id": "private-project-use",
+    "redistribution_permitted": false,
+    "notes": "Local experiment use only; original files and embedded EXIF/GPS metadata are not committed."
+  },
+  "capture_notes": [
+    "Fourteen handheld portrait frames of a stationary bottle with camera-position and lighting changes."
+  ],
+  "known_limitations": [
+    "Viewpoint, exposure, and screen content vary across the burst."
+  ],
+  "expected_frame_count": 14,
+  "expected_dimensions": {
+    "width": 4284,
+    "height": 5712
+  },
+  "files": [
+    { "path": "IMG_8472.jpg", "sha256": "d6c350dba40a4712af08901f46e364e3b1e5bf5a1833fba31a21f12c0e99fb88" },
+    { "path": "IMG_8473.jpg", "sha256": "bf30b0786ccb18d6b0e2b56a158a2a2728627ee6093c5f2ae4b94f0bfbfd5c25" },
+    { "path": "IMG_8474.jpg", "sha256": "f8da91edcda77999bc9e0c556de0e0bfc6e4df35b2fc614d0d9d929a27770873" },
+    { "path": "IMG_8475.jpg", "sha256": "4b92f4ac50da8fcc303da4b4920fcd8503fc0ad2c156adaa429f6aeb4436ea16" },
+    { "path": "IMG_8476.jpg", "sha256": "41fcdd30b2246bebf58ba33bc71ff2e37b6841c7e430f1a3e76d96960e97cc63" },
+    { "path": "IMG_8477.jpg", "sha256": "9cf7e7e4d2b06ba3f193fd0caf0d5a0c75e5865d842c0ae3a1bba1295371001c" },
+    { "path": "IMG_8478.jpg", "sha256": "a2f0b3a5972a843ad33c08f0fe9daab6fa1f7ef221bb4099882f00cc4df57aa4" },
+    { "path": "IMG_8479.jpg", "sha256": "27f1cf0d0bdd1bd81ee76ffff33718a11306423a17863906e91d99fac260bf1d" },
+    { "path": "IMG_8481.jpg", "sha256": "e7d080a6cf7f869ab69872a2c2fe83615430bd3892cdaab04e3f13f59bf92aa7" },
+    { "path": "IMG_8482.jpg", "sha256": "5e0783fa997d666ea72ead9dbc8b7f590fabd27b478779a0c2e112737ff51912" },
+    { "path": "IMG_8483.jpg", "sha256": "de9a96a19953444eaa6717a89ed2dbd48993eef5bec6cbbcf8db2eaebd5ed03e" },
+    { "path": "IMG_8484.jpg", "sha256": "9f58924c71291f5b20a98ee75ca9ae9fbb3c5017a4e232924ea5d70d737c93f3" },
+    { "path": "IMG_8485.jpg", "sha256": "9455d3537aeb1f599a2baef1bcfffe44f9189aa89ffddf63cfc2aba47516fbca" },
+    { "path": "IMG_8486.jpg", "sha256": "7a1a5647e5922147c486705588401c20d9deab2d07922393e86746efd17d6154" }
+  ]
+}

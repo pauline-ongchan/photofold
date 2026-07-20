@@ -11,6 +11,10 @@ import numpy as np
 from PIL import Image, ImageOps
 from skimage.metrics import structural_similarity
 
+WEBP_FORMAT = "WEBP"
+WEBP_METHOD = 6
+WEBP_EXACT = True
+
 
 def sha256_bytes(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
@@ -34,10 +38,10 @@ def encode_webp(image: np.ndarray, quality: int) -> bytes:
     buffer = io.BytesIO()
     Image.fromarray(image, mode="RGB").save(
         buffer,
-        format="WEBP",
+        format=WEBP_FORMAT,
         quality=quality,
-        method=6,
-        exact=True,
+        method=WEBP_METHOD,
+        exact=WEBP_EXACT,
     )
     return buffer.getvalue()
 
@@ -67,6 +71,14 @@ def rgb_ssim(original: np.ndarray, reconstruction: np.ndarray) -> float:
             channel_axis=2,
         )
     )
+
+
+def rgb_psnr(original: np.ndarray, reconstruction: np.ndarray) -> float:
+    difference = original.astype(np.float64) - reconstruction.astype(np.float64)
+    mean_squared_error = float(np.mean(difference * difference))
+    if mean_squared_error == 0:
+        return float("inf")
+    return float(10 * np.log10((255**2) / mean_squared_error))
 
 
 def difference_heatmap(original: np.ndarray, reconstruction: np.ndarray) -> np.ndarray:

@@ -3,8 +3,10 @@ DATASET := data/demo/hdrplus-static
 GATE0_ARTIFACTS := artifacts/gate0
 GATE1_OUTPUT ?= artifacts/gate1/hdrplus-static
 GATE1_CONFIG ?= configs/gate1.yaml
+PHASE1B_DATASETS ?= data/real-bursts
+PHASE1B_OUTPUT ?= artifacts/phase1b
 
-.PHONY: install contracts verify-gate0 human-verify-gate0 verify-gate1 human-verify-gate1 dev-processor dev-web
+.PHONY: install contracts verify-gate0 human-verify-gate0 verify-gate1 human-verify-gate1 verify-phase1b-fast verify-phase1b human-verify-phase1b dev-processor dev-web
 
 install:
 	python3 -m venv .venv
@@ -41,6 +43,25 @@ verify-gate1:
 human-verify-gate1: verify-gate1
 	@echo "Gate 1 report ready: $(GATE1_OUTPUT)/report.html"
 	@echo "Open it with: open $(GATE1_OUTPUT)/report.html"
+
+verify-phase1b-fast:
+	@mkdir -p $(PHASE1B_OUTPUT)
+	$(PYTHON) -m photofold.cli validate-phase1b-datasets $(PHASE1B_DATASETS) --output $(PHASE1B_OUTPUT)/dataset-collection-validation.json
+	$(PYTHON) -m ruff check services/processor
+	$(PYTHON) -m pytest -q services/processor/tests/phase1b
+	npm run contracts:check
+	@echo "PHASE 1B FAST: PASS"
+
+verify-phase1b: verify-phase1b-fast
+	$(PYTHON) -m photofold.cli benchmark-phase1b --datasets $(PHASE1B_DATASETS) --config $(GATE1_CONFIG) --output $(PHASE1B_OUTPUT)
+	$(PYTHON) -m photofold.cli verify-phase1b-report $(PHASE1B_OUTPUT)/report.html --output $(PHASE1B_OUTPUT)/report-verification.json
+	@echo "PHASE 1B AUTOMATED: PASS (human visual review remains required)"
+
+human-verify-phase1b: verify-phase1b
+	@echo "Phase 1B report ready: $(PHASE1B_OUTPUT)/report.html"
+	@echo "Open it with networking disabled: open $(PHASE1B_OUTPUT)/report.html"
+	@echo "Copy $(PHASE1B_OUTPUT)/human-review-template.json to $(PHASE1B_OUTPUT)/human-review.json, complete every field, then run:"
+	@echo "$(PYTHON) -m photofold.cli finalize-phase1b-review --artifacts $(PHASE1B_OUTPUT) --review $(PHASE1B_OUTPUT)/human-review.json"
 
 dev-processor:
 	$(PYTHON) -m uvicorn photofold.main:app --host 127.0.0.1 --port 8000 --reload

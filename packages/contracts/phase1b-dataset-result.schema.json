@@ -1,0 +1,607 @@
+{
+  "$defs": {
+    "ControlFrameResult": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "exclusiveMinimum": 0,
+          "title": "Bytes",
+          "type": "integer"
+        },
+        "index": {
+          "minimum": 0,
+          "title": "Index",
+          "type": "integer"
+        },
+        "psnr_db": {
+          "$ref": "#/$defs/PsnrValue"
+        },
+        "ssim": {
+          "maximum": 1,
+          "minimum": -1,
+          "title": "Ssim",
+          "type": "number"
+        }
+      },
+      "required": [
+        "index",
+        "bytes",
+        "ssim",
+        "psnr_db"
+      ],
+      "title": "ControlFrameResult",
+      "type": "object"
+    },
+    "ControlTiming": {
+      "additionalProperties": false,
+      "properties": {
+        "decode_measurement_ms": {
+          "minimum": 0,
+          "title": "Decode Measurement Ms",
+          "type": "number"
+        },
+        "encoding_ms": {
+          "minimum": 0,
+          "title": "Encoding Ms",
+          "type": "number"
+        },
+        "total_ms": {
+          "minimum": 0,
+          "title": "Total Ms",
+          "type": "number"
+        }
+      },
+      "required": [
+        "encoding_ms",
+        "decode_measurement_ms",
+        "total_ms"
+      ],
+      "title": "ControlTiming",
+      "type": "object"
+    },
+    "IndependentWebPPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "mean_psnr_db": {
+          "$ref": "#/$defs/PsnrValue"
+        },
+        "mean_ssim": {
+          "maximum": 1,
+          "minimum": -1,
+          "title": "Mean Ssim",
+          "type": "number"
+        },
+        "minimum_psnr_db": {
+          "$ref": "#/$defs/PsnrValue"
+        },
+        "minimum_ssim": {
+          "maximum": 1,
+          "minimum": -1,
+          "title": "Minimum Ssim",
+          "type": "number"
+        },
+        "per_frame": {
+          "items": {
+            "$ref": "#/$defs/ControlFrameResult"
+          },
+          "minItems": 1,
+          "title": "Per Frame",
+          "type": "array"
+        },
+        "quality": {
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Quality",
+          "type": "integer"
+        },
+        "timing": {
+          "$ref": "#/$defs/ControlTiming"
+        },
+        "total_bytes": {
+          "exclusiveMinimum": 0,
+          "title": "Total Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "quality",
+        "total_bytes",
+        "mean_ssim",
+        "minimum_ssim",
+        "mean_psnr_db",
+        "minimum_psnr_db",
+        "per_frame",
+        "timing"
+      ],
+      "title": "IndependentWebPPoint",
+      "type": "object"
+    },
+    "IntegrityCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "required_for_machine_pass": {
+          "default": true,
+          "title": "Required For Machine Pass",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "passed",
+        "detail"
+      ],
+      "title": "IntegrityCheck",
+      "type": "object"
+    },
+    "MatchedBaselineResult": {
+      "additionalProperties": false,
+      "properties": {
+        "curve": {
+          "items": {
+            "$ref": "#/$defs/IndependentWebPPoint"
+          },
+          "minItems": 1,
+          "title": "Curve",
+          "type": "array"
+        },
+        "psnr_tolerance_db": {
+          "minimum": 0,
+          "title": "Psnr Tolerance Db",
+          "type": "number"
+        },
+        "qualifying_qualities": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Qualifying Qualities",
+          "type": "array"
+        },
+        "selected": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IndependentWebPPoint"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ssim_tolerance": {
+          "minimum": 0,
+          "title": "Ssim Tolerance",
+          "type": "number"
+        },
+        "status": {
+          "enum": [
+            "matched",
+            "unmatched"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "sweep_timing_ms": {
+          "minimum": 0,
+          "title": "Sweep Timing Ms",
+          "type": "number"
+        }
+      },
+      "required": [
+        "status",
+        "ssim_tolerance",
+        "psnr_tolerance_db",
+        "selected",
+        "qualifying_qualities",
+        "curve",
+        "sweep_timing_ms"
+      ],
+      "title": "MatchedBaselineResult",
+      "type": "object"
+    },
+    "PackageMemberResult": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "role": {
+          "title": "Role",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "stored_bytes": {
+          "minimum": 0,
+          "title": "Stored Bytes",
+          "type": "integer"
+        },
+        "uncompressed_bytes": {
+          "minimum": 0,
+          "title": "Uncompressed Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "path",
+        "role",
+        "stored_bytes",
+        "uncompressed_bytes",
+        "sha256"
+      ],
+      "title": "PackageMemberResult",
+      "type": "object"
+    },
+    "PsnrValue": {
+      "additionalProperties": false,
+      "properties": {
+        "is_infinite": {
+          "title": "Is Infinite",
+          "type": "boolean"
+        },
+        "value_db": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value Db"
+        }
+      },
+      "required": [
+        "value_db",
+        "is_infinite"
+      ],
+      "title": "PsnrValue",
+      "type": "object"
+    },
+    "SourceRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "exclusiveMinimum": 0,
+          "title": "Bytes",
+          "type": "integer"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "bytes",
+        "sha256"
+      ],
+      "title": "SourceRecord",
+      "type": "object"
+    },
+    "WebPControlSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "exact": {
+          "const": true,
+          "title": "Exact",
+          "type": "boolean"
+        },
+        "fixed_quality": {
+          "const": 70,
+          "title": "Fixed Quality",
+          "type": "integer"
+        },
+        "format": {
+          "const": "WEBP",
+          "title": "Format",
+          "type": "string"
+        },
+        "matched_quality_max": {
+          "const": 100,
+          "title": "Matched Quality Max",
+          "type": "integer"
+        },
+        "matched_quality_min": {
+          "const": 1,
+          "title": "Matched Quality Min",
+          "type": "integer"
+        },
+        "matched_quality_step": {
+          "const": 1,
+          "title": "Matched Quality Step",
+          "type": "integer"
+        },
+        "method": {
+          "const": 6,
+          "title": "Method",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "format",
+        "method",
+        "exact",
+        "fixed_quality",
+        "matched_quality_min",
+        "matched_quality_max",
+        "matched_quality_step"
+      ],
+      "title": "WebPControlSettings",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "accepted_frame_count": {
+      "maximum": 20,
+      "minimum": 0,
+      "title": "Accepted Frame Count",
+      "type": "integer"
+    },
+    "alignment": {
+      "additionalProperties": true,
+      "title": "Alignment",
+      "type": "object"
+    },
+    "artifacts": {
+      "additionalProperties": true,
+      "title": "Artifacts",
+      "type": "object"
+    },
+    "checks": {
+      "items": {
+        "$ref": "#/$defs/IntegrityCheck"
+      },
+      "title": "Checks",
+      "type": "array"
+    },
+    "config_path": {
+      "title": "Config Path",
+      "type": "string"
+    },
+    "config_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Config Sha256",
+      "type": "string"
+    },
+    "dataset_id": {
+      "title": "Dataset Id",
+      "type": "string"
+    },
+    "dataset_path": {
+      "title": "Dataset Path",
+      "type": "string"
+    },
+    "environment": {
+      "additionalProperties": true,
+      "title": "Environment",
+      "type": "object"
+    },
+    "failed_checks": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Failed Checks",
+      "type": "array"
+    },
+    "fixed_webp": {
+      "$ref": "#/$defs/IndependentWebPPoint"
+    },
+    "frame_dispositions": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Frame Dispositions",
+      "type": "array"
+    },
+    "full_curve_required": {
+      "title": "Full Curve Required",
+      "type": "boolean"
+    },
+    "human_visual_review_status": {
+      "enum": [
+        "pending",
+        "pass",
+        "fail"
+      ],
+      "title": "Human Visual Review Status",
+      "type": "string"
+    },
+    "machine_pass": {
+      "title": "Machine Pass",
+      "type": "boolean"
+    },
+    "manifest_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Manifest Sha256",
+      "type": "string"
+    },
+    "matched_webp": {
+      "$ref": "#/$defs/MatchedBaselineResult"
+    },
+    "original_total_bytes": {
+      "exclusiveMinimum": 0,
+      "title": "Original Total Bytes",
+      "type": "integer"
+    },
+    "package_members": {
+      "items": {
+        "$ref": "#/$defs/PackageMemberResult"
+      },
+      "title": "Package Members",
+      "type": "array"
+    },
+    "package_overhead": {
+      "additionalProperties": true,
+      "title": "Package Overhead",
+      "type": "object"
+    },
+    "parameters": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Parameters",
+      "type": "object"
+    },
+    "per_frame": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Per Frame",
+      "type": "array"
+    },
+    "photofold_package_bytes": {
+      "exclusiveMinimum": 0,
+      "title": "Photofold Package Bytes",
+      "type": "integer"
+    },
+    "photofold_package_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Photofold Package Sha256",
+      "type": "string"
+    },
+    "quality": {
+      "additionalProperties": true,
+      "title": "Quality",
+      "type": "object"
+    },
+    "reconstructed_frame_count": {
+      "maximum": 20,
+      "minimum": 0,
+      "title": "Reconstructed Frame Count",
+      "type": "integer"
+    },
+    "reference_frame_index": {
+      "minimum": 0,
+      "title": "Reference Frame Index",
+      "type": "integer"
+    },
+    "run_at": {
+      "format": "date-time",
+      "title": "Run At",
+      "type": "string"
+    },
+    "scenario_category": {
+      "title": "Scenario Category",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source_after": {
+      "items": {
+        "$ref": "#/$defs/SourceRecord"
+      },
+      "title": "Source After",
+      "type": "array"
+    },
+    "source_before": {
+      "items": {
+        "$ref": "#/$defs/SourceRecord"
+      },
+      "title": "Source Before",
+      "type": "array"
+    },
+    "source_immutability_pass": {
+      "title": "Source Immutability Pass",
+      "type": "boolean"
+    },
+    "status": {
+      "enum": [
+        "pass",
+        "fail"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "storage": {
+      "additionalProperties": true,
+      "title": "Storage",
+      "type": "object"
+    },
+    "timings": {
+      "additionalProperties": true,
+      "title": "Timings",
+      "type": "object"
+    },
+    "validation": {
+      "additionalProperties": true,
+      "title": "Validation",
+      "type": "object"
+    },
+    "webp_control_settings": {
+      "$ref": "#/$defs/WebPControlSettings"
+    }
+  },
+  "required": [
+    "schema_version",
+    "status",
+    "run_at",
+    "dataset_id",
+    "scenario_category",
+    "dataset_path",
+    "manifest_sha256",
+    "validation",
+    "source_before",
+    "source_after",
+    "source_immutability_pass",
+    "config_path",
+    "config_sha256",
+    "parameters",
+    "environment",
+    "frame_dispositions",
+    "accepted_frame_count",
+    "reconstructed_frame_count",
+    "original_total_bytes",
+    "webp_control_settings",
+    "fixed_webp",
+    "matched_webp",
+    "full_curve_required",
+    "photofold_package_bytes",
+    "photofold_package_sha256",
+    "storage",
+    "reference_frame_index",
+    "alignment",
+    "per_frame",
+    "quality",
+    "timings",
+    "package_overhead",
+    "package_members",
+    "artifacts",
+    "checks",
+    "machine_pass",
+    "human_visual_review_status",
+    "failed_checks"
+  ],
+  "title": "Phase1BDatasetResult",
+  "type": "object"
+}
