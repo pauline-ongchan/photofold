@@ -143,6 +143,7 @@ class IntegrityCheck(Phase1BModel):
     id: str
     label: str
     passed: bool
+    required_for_machine_pass: bool = True
     detail: str
 
 
@@ -156,6 +157,7 @@ class PackageMemberResult(Phase1BModel):
 
 class Phase1BDatasetResult(Phase1BModel):
     schema_version: Literal["1.0"]
+    status: Literal["pass", "fail"]
     run_at: datetime
     dataset_id: str
     scenario_category: str
@@ -194,9 +196,12 @@ class Phase1BDatasetResult(Phase1BModel):
 
 class DatasetAggregateSummary(Phase1BModel):
     dataset_id: str
-    matched_status: Literal["matched", "unmatched"]
+    dataset_status: Literal["pass", "fail"]
+    matched_status: Literal["matched", "unmatched", "not-run"]
     relational_savings_percent: float | None
-    photofold_package_bytes: int = Field(gt=0)
+    original_total_bytes: int = Field(ge=0)
+    fixed_webp_total_bytes: int = Field(ge=0)
+    photofold_package_bytes: int = Field(ge=0)
     matched_webp_total_bytes: int | None = Field(default=None, gt=0)
     accepted_frame_count: int = Field(ge=0)
     reconstructed_frame_count: int = Field(ge=0)
@@ -231,10 +236,10 @@ class Phase1BAggregateResult(Phase1BModel):
     generated_at: datetime
     dataset_order: list[str] = Field(min_length=3, max_length=3)
     datasets: list[DatasetAggregateSummary] = Field(min_length=3, max_length=3)
-    aggregate_original_bytes: int = Field(gt=0)
-    aggregate_fixed_webp_bytes: int = Field(gt=0)
+    aggregate_original_bytes: int = Field(ge=0)
+    aggregate_fixed_webp_bytes: int = Field(ge=0)
     aggregate_matched_webp_bytes: int | None = Field(default=None, gt=0)
-    aggregate_photofold_bytes: int = Field(gt=0)
+    aggregate_photofold_bytes: int = Field(ge=0)
     median_relational_savings_percent: float | None
     weighted_mean_relational_savings_percent: float | None
     best_dataset_id: str | None

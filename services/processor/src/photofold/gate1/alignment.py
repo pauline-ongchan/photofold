@@ -15,6 +15,14 @@ class FeatureSet:
     descriptors: np.ndarray | None
 
 
+class AlignmentFailure(ValueError):
+    """Raised when the selected reference cannot align one or more frames."""
+
+    def __init__(self, message: str, frame_indices: list[int]) -> None:
+        super().__init__(message)
+        self.frame_indices = frame_indices
+
+
 def analysis_copy(image: np.ndarray, max_dimension: int = 800) -> tuple[np.ndarray, float, float]:
     height, width = image.shape[:2]
     scale = min(1.0, max_dimension / max(width, height))
@@ -223,6 +231,16 @@ def select_reference_and_align(images: list[np.ndarray]) -> dict[str, Any]:
         )
 
     reference_index = max(candidate_records, key=lambda item: item["score"])["index"]
+    failed_targets = [
+        index
+        for index in range(len(images))
+        if index != reference_index and (reference_index, index) not in pair_cache
+    ]
+    if failed_targets:
+        raise AlignmentFailure(
+            f"Selected reference {reference_index} could not align frames {failed_targets}",
+            failed_targets,
+        )
     height, width = images[0].shape[:2]
     transforms: list[dict[str, Any]] = []
     model_comparison: list[dict[str, Any]] = []

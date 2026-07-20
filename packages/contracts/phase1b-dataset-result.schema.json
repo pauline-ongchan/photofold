@@ -134,6 +134,11 @@
         "passed": {
           "title": "Passed",
           "type": "boolean"
+        },
+        "required_for_machine_pass": {
+          "default": true,
+          "title": "Required For Machine Pass",
+          "type": "boolean"
         }
       },
       "required": [
@@ -475,6 +480,14 @@
       "title": "Source Immutability Pass",
       "type": "boolean"
     },
+    "status": {
+      "enum": [
+        "pass",
+        "fail"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
     "storage": {
       "additionalProperties": true,
       "title": "Storage",
@@ -493,6 +506,7 @@
   },
   "required": [
     "schema_version",
+    "status",
     "run_at",
     "dataset_id",
     "scenario_category",

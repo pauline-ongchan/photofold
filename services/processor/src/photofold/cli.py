@@ -16,8 +16,15 @@ from photofold.gate1.bundle import (
     verify_package,
 )
 from photofold.gate1.report import verify_report
+from photofold.phase1b.benchmark import run_phase1b_dataset
 from photofold.phase1b.datasets import validate_phase1b_collection
+from photofold.phase1b.experiment import (
+    Phase1BReviewError,
+    finalize_human_review,
+    run_phase1b_experiment,
+)
 from photofold.phase1b.models import export_phase1b_schemas
+from photofold.phase1b.report import verify_phase1b_report
 
 
 def _write_json(payload: dict[str, Any], output: str | None) -> None:
@@ -75,6 +82,50 @@ def _export_phase1b_schemas(args: argparse.Namespace) -> int:
     for path in paths:
         print(f"Wrote {path}")
     return 0
+
+
+def _benchmark_phase1b_dataset(args: argparse.Namespace) -> int:
+    result = run_phase1b_dataset(
+        dataset_path=args.dataset,
+        config_path=args.config,
+        output_path=args.output,
+    )
+    summary = {
+        "status": result["status"],
+        "dataset_id": result["dataset_id"],
+        "machine_pass": result["machine_pass"],
+        "accepted_frame_count": result["accepted_frame_count"],
+        "reconstructed_frame_count": result["reconstructed_frame_count"],
+        "matched_status": result["matched_webp"]["status"],
+        "failed_checks": result["failed_checks"],
+    }
+    _write_json(summary, None)
+    return 0 if result["machine_pass"] else 1
+
+
+def _benchmark_phase1b(args: argparse.Namespace) -> int:
+    result = run_phase1b_experiment(
+        dataset_root=args.datasets,
+        config_path=args.config,
+        artifact_root=args.output,
+    )
+    _write_json(result, None)
+    return 0 if result["automated_pass"] else 1
+
+
+def _verify_phase1b_report(args: argparse.Namespace) -> int:
+    result = verify_phase1b_report(args.report)
+    _write_json(result, args.output)
+    return 0 if result["status"] == "pass" else 1
+
+
+def _finalize_phase1b_review(args: argparse.Namespace) -> int:
+    try:
+        result = finalize_human_review(args.artifacts, args.review)
+    except Phase1BReviewError as error:
+        result = {"status": "fail", "error": str(error)}
+    _write_json(result, None)
+    return 0 if result["status"] == "pass" else 1
 
 
 def _benchmark(args: argparse.Namespace) -> int:
@@ -181,6 +232,40 @@ def build_parser() -> argparse.ArgumentParser:
     )
     phase1b_schemas.add_argument("--output-directory", required=True)
     phase1b_schemas.set_defaults(handler=_export_phase1b_schemas)
+
+    phase1b_dataset_benchmark = commands.add_parser(
+        "benchmark-phase1b-dataset",
+        help="Run one canonical Phase 1B dataset with the frozen Gate 1 treatment",
+    )
+    phase1b_dataset_benchmark.add_argument("--dataset", required=True)
+    phase1b_dataset_benchmark.add_argument("--config", required=True)
+    phase1b_dataset_benchmark.add_argument("--output", required=True)
+    phase1b_dataset_benchmark.set_defaults(handler=_benchmark_phase1b_dataset)
+
+    phase1b_benchmark = commands.add_parser(
+        "benchmark-phase1b",
+        help="Run all three Phase 1B datasets and generate aggregate offline evidence",
+    )
+    phase1b_benchmark.add_argument("--datasets", required=True)
+    phase1b_benchmark.add_argument("--config", required=True)
+    phase1b_benchmark.add_argument("--output", required=True)
+    phase1b_benchmark.set_defaults(handler=_benchmark_phase1b)
+
+    phase1b_report = commands.add_parser(
+        "verify-phase1b-report",
+        help="Recompute and structurally verify the self-contained Phase 1B report",
+    )
+    phase1b_report.add_argument("report")
+    phase1b_report.add_argument("--output")
+    phase1b_report.set_defaults(handler=_verify_phase1b_report)
+
+    phase1b_review = commands.add_parser(
+        "finalize-phase1b-review",
+        help="Bind a completed human review to current Phase 1B evidence",
+    )
+    phase1b_review.add_argument("--artifacts", required=True)
+    phase1b_review.add_argument("--review", required=True)
+    phase1b_review.set_defaults(handler=_finalize_phase1b_review)
 
     benchmark = commands.add_parser(
         "benchmark",

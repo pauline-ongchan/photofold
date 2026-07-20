@@ -12,6 +12,19 @@
           "title": "Dataset Id",
           "type": "string"
         },
+        "dataset_status": {
+          "enum": [
+            "pass",
+            "fail"
+          ],
+          "title": "Dataset Status",
+          "type": "string"
+        },
+        "fixed_webp_total_bytes": {
+          "minimum": 0,
+          "title": "Fixed Webp Total Bytes",
+          "type": "integer"
+        },
         "machine_pass": {
           "title": "Machine Pass",
           "type": "boolean"
@@ -19,7 +32,8 @@
         "matched_status": {
           "enum": [
             "matched",
-            "unmatched"
+            "unmatched",
+            "not-run"
           ],
           "title": "Matched Status",
           "type": "string"
@@ -37,8 +51,13 @@
           "default": null,
           "title": "Matched Webp Total Bytes"
         },
+        "original_total_bytes": {
+          "minimum": 0,
+          "title": "Original Total Bytes",
+          "type": "integer"
+        },
         "photofold_package_bytes": {
-          "exclusiveMinimum": 0,
+          "minimum": 0,
           "title": "Photofold Package Bytes",
           "type": "integer"
         },
@@ -61,8 +80,11 @@
       },
       "required": [
         "dataset_id",
+        "dataset_status",
         "matched_status",
         "relational_savings_percent",
+        "original_total_bytes",
+        "fixed_webp_total_bytes",
         "photofold_package_bytes",
         "accepted_frame_count",
         "reconstructed_frame_count",
@@ -162,7 +184,7 @@
   "additionalProperties": false,
   "properties": {
     "aggregate_fixed_webp_bytes": {
-      "exclusiveMinimum": 0,
+      "minimum": 0,
       "title": "Aggregate Fixed Webp Bytes",
       "type": "integer"
     },
@@ -180,12 +202,12 @@
       "title": "Aggregate Matched Webp Bytes"
     },
     "aggregate_original_bytes": {
-      "exclusiveMinimum": 0,
+      "minimum": 0,
       "title": "Aggregate Original Bytes",
       "type": "integer"
     },
     "aggregate_photofold_bytes": {
-      "exclusiveMinimum": 0,
+      "minimum": 0,
       "title": "Aggregate Photofold Bytes",
       "type": "integer"
     },
