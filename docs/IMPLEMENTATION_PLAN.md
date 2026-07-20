@@ -1,6 +1,6 @@
 # PhotoFold Implementation Plan
 
-**Status:** Phase 0, the CLI-only Phase 1, and Phase 1B are implemented and accepted for the hackathon MVP. Phase 4P / Gate 3P is implemented and passes automated verification; project-owner visual acceptance remains pending. Phase 2 / Gate 2A and Phase 3 / Gate 2B are explicitly deferred rather than completed. The deferred hardening and FastAPI service remain the production-oriented path.
+**Status:** Phase 0, the CLI-only Phase 1, and Phase 1B are implemented and accepted for the hackathon MVP. Phase 4P.1 generalizes the Gate 3P prototype with resolution-independent alignment evidence and per-frame fallback; its implementation-agent UI visual review passes, while project-owner functional acceptance remains pending. Phase 2 / Gate 2A and Phase 3 / Gate 2B are explicitly deferred rather than completed. The deferred hardening and FastAPI service remain the production-oriented path.
 **Source of truth:** `docs/PhotoFold_Developer_PRD.md`
 **Demo context only:** `docs/PhotoFold_Demo_Script.md`
 **Planning date:** 2026-07-18
@@ -88,7 +88,9 @@ The bridge may expose coarse states such as `validating`, `processing`, `complet
 | Masks | Lossy masks can create unstable edges and seams. | Use lossless grayscale PNG masks first. Consider lossless WebP only after codec feature checks and byte measurements. Image patches and the base use lossy WebP. |
 | Reference base | A median/consensus scene is more complex and can create ghosting. | Use one automatically selected, encoded WebP reference as the base. A consensus base and multiple bases remain out of scope unless Gate 1 cannot pass on the curated envelope. |
 | Transform model | One global homography can distort a mostly planar phone scene and does not solve parallax. | Start with partial affine estimation using RANSAC. Permit a homography only when it materially improves inlier/reprojection metrics and passes geometric sanity checks. Try ECC affine as a small-motion fallback. Reject strong parallax rather than adding optical flow in P0. |
-| Dimensions and orientation | “Original dimensions” is ambiguous when EXIF rotation changes displayed width and height. Mixed resolutions add avoidable risk. | Normalize EXIF orientation immediately and define the resulting display-oriented dimensions as `output_width` and `output_height`. P0 accepts sets with identical oriented dimensions; incompatible dimensions fail clearly. Preserve the uploaded byte count separately. |
+| Dimensions and orientation | “Original dimensions” is ambiguous when EXIF rotation changes displayed width and height. Mixed resolutions cannot safely share one base without a resize/crop policy. | Normalize EXIF orientation immediately and define the resulting display-oriented dimensions as `output_width` and `output_height`. Gate 1 remains same-dimension; Phase 4P.1 stores mixed-dimension frames independently without resizing, cropping, or distortion. Preserve the uploaded byte count separately. |
+| Alignment error units | Converting reduced-analysis reprojection error back to full-resolution pixels made the fixed cutoff reject the same scene at higher capture resolutions. | Measure median inlier reprojection error in `analysis_pixels` on an oriented copy whose longest dimension is at most 800 px. Record the unit, analysis size, 2.0 analysis-px threshold, and 0.80 inlier threshold. Never scale the error back to source resolution. |
+| Weak per-frame alignment | All-or-nothing analysis blocked a valid package when one frame could not safely share the base. | Deterministically select the candidate with the largest safe same-dimension group, then the existing reference score and source index as tie-breakers. Store unsafe/different-dimension frames as exact independent source members. If fewer than two frames can share, create an independent-only package. |
 | Accepted versus uploaded frames | The PRD permits outlier rejection but also requires at least five photos and no silent discard. | Every input gets an explicit accepted/rejected state and reasons. Gate 1 uses at least five inputs and accepts/reconstructs all of them. In the product, folding is disabled if fewer than five frames remain accepted. Rejected frames never vanish from the UI. |
 | Shared/change percentages | The denominator and aggregate semantics are unspecified, and a pre-fold estimate could be mistaken for a final metric. | Per frame: `changed_region_percent = changed mask pixels / output pixels`; `shared_region_percent = valid warped-base pixels not marked changed / output pixels`; uncovered pixels count as changed. Aggregate values are pixel-area-weighted. Analysis-resolution values are labeled “estimate”; result values come from full-resolution masks. |
 | Quality | Whole-image SSIM can hide a damaged face or a small severe artifact. Color and range settings are unspecified. | P0 reports per-frame RGB SSIM using `data_range=255` and `channel_axis=2`, plus mean, minimum, and a real pixel-difference heatmap. Gate 1 selects and records thresholds after visual review. Add changed-region SSIM or worst-tile error as an engineering diagnostic if whole-image SSIM masks local damage. |
@@ -265,13 +267,16 @@ moment.photofold                  # ZIP_STORED archive with this extension
 │       └── patches/
 │           ├── 000.webp
 │           └── 000-mask.png
+│   └── 002/
+│       ├── frame.json
+│       └── source.jpg             # exact payload for independent fallback
 └── metadata/
     ├── analysis.json
     ├── metrics.json              # quality/config; no self-referential archive size
     └── semantic-analysis.json     # absent unless P1 ran successfully
 ```
 
-`manifest.json` is versioned, schema-validated, and contains byte sizes plus SHA-256 checksums for every referenced non-manifest asset. It cannot checksum itself; the external run result can record the final archive checksum. Package validation rejects missing paths, unsafe ZIP paths, non-finite transforms, checksum mismatches, invalid dimensions, and unknown required codec/features.
+`manifest.json` is versioned, schema-validated, and contains byte sizes plus SHA-256 checksums for every referenced non-manifest asset. Version 0.2 declares `shared_reference`, `shared_delta`, or `independent_source` per frame plus normalized per-frame dimensions and permits a null base/reference only for `independent_only`. It cannot checksum itself; the external run result can record the final archive checksum. Package validation rejects missing/unallowlisted paths, unsafe ZIP paths, frame/manifest disagreement, non-finite transforms, checksum mismatches, invalid dimensions, and unknown required codec/features. The public decoder migrates version 0.1 packages in memory for backward decoding.
 
 Preview images, reconstructed exports, difference heatmaps, and debug overlays live in the temporary run directory, not in the compression package. If the team later chooses to include a preview in the downloadable archive, its bytes automatically count in `package_total_bytes`.
 
@@ -823,7 +828,7 @@ The manual two-terminal smoke command should also be wrapped by `make verify-gat
 
 ### Phase 4P / Gate 3P — Local end-to-end prototype flow
 
-**Status:** Implemented with automated verification passing on 2026-07-19. Project-owner visual acceptance remains pending. This prototype profile intentionally proceeds while Gate 2A and Gate 2B remain deferred.
+**Status:** Phase 4P.1 generalized folding is implemented and its implementation-agent UI visual review passes. Project-owner functional acceptance remains pending. This prototype profile intentionally proceeds while Gate 2A and Gate 2B remain deferred.
 
 **Goal:** Build only the local UI and bridge required to exercise and prove the real processor without introducing a standalone processing service.
 
@@ -837,6 +842,8 @@ The manual two-terminal smoke command should also be wrapped by `make verify-gat
 - Frame browser with original/reconstruction toggle or slider and difference heatmap.
 - One-frame standard export and `.photofold` bundle download.
 - Understandable failure/no-savings/quality-failure states.
+- `shared_scene`, `hybrid`, and `independent_only` analysis strategies with ordered per-frame Shared/Fallback dispositions and reasons.
+- Resolution-independent alignment evidence plus exact-source independent members for weak alignment or mixed normalized dimensions.
 - Focused responsive layout sufficient for a laptop demo; no elaborate mobile polish.
 
 **Acceptance criteria**
@@ -844,10 +851,10 @@ The manual two-terminal smoke command should also be wrapped by `make verify-gat
 - A user completes upload → analyze → fold → inspect → export → bundle download with no CLI step.
 - UI values match processor result artifacts and downloaded file stat; no number is computed from a mock or animation.
 - Removing a file before analysis changes the uploaded total and processor input.
-- Invalid input and processor failures are understandable; structured per-frame rejection remains deferred unless the existing processor emits it.
+- Invalid input and processor failures are understandable; every valid frame receives an explicit shared/fallback storage disposition.
 - The viewer uses actual per-frame artifacts and can zoom via normal browser/canvas behavior.
 - No-savings and failed-quality results never display positive-savings language.
-- One Playwright test covers the curated happy path; focused tests cover error-state rendering.
+- Playwright covers both the curated shared burst and a native fallback workflow; focused tests cover error-state and strategy rendering.
 - The bridge accepts only files in its run workspace, never interpolates user input into shell text, permits one active fold, and provides explicit startup/manual cleanup.
 
 **Validation commands**
@@ -865,15 +872,15 @@ make verify-gate3
 
 1. **Run:** From the repository root, run `make human-verify-gate3 DATASET=data/real-bursts/static-handheld`. The target must clear only its Gate 3P temporary state, start the local bridge and frontend, print `Gate 3P app ready at http://127.0.0.1:3000`, and remain running until `Ctrl-C`.
 2. **Open:** Open <http://127.0.0.1:3000>.
-3. **Expect to see:** A usable PhotoFold prototype flow. Uploading the files in `data/real-bursts/static-handheld/` shows ordered thumbnails and real source totals. Analyze shows the real validation/reference information currently available from the processor. Fold shows honest busy/completed/failed state from the CLI run. Results show real archive/original/saved bytes, mean/minimum SSIM, every reconstructed frame, comparison view, heatmap, export, and bundle download. A measured no-savings result visibly uses neutral/failure language rather than a positive claim.
+3. **Expect to see:** A usable PhotoFold prototype flow. Uploading the files in `data/real-bursts/static-handheld/` shows ordered thumbnails and real source totals. Analyze says `Ready to fold`, shows strategy `hybrid`, and reports `13` shared plus `2` fallback frames with measured low-inlier reasons. Fold shows honest busy/terminal state from the CLI run. Results show the real archive/original comparison, mean/minimum SSIM, all 15 reconstructed frames, comparison view, heatmap, selected-photo export, and archive download. The current measured result is honestly `failed_quality`, not a positive savings result.
 4. **Pass/fail checklist:**
    - [ ] All uploaded thumbnails, names, sizes, dimensions, and source total are visible and correct; removing one file updates the total before analysis.
-   - [ ] Analysis clearly distinguishes available processor facts from unavailable or deferred analysis details.
+   - [ ] Analysis records `analysis_pixels`, the 800 px analysis canvas, the 2.0 px error threshold, shared/fallback counts, and a per-frame disposition/reason.
    - [ ] Fold state follows the actual CLI process and reaches a terminal result without fake progress.
    - [ ] Results match the processor values shown in `artifacts/gate3/latest/result.json`.
    - [ ] Every frame can switch/slide between original and reconstruction, zoom, and show a real heatmap.
-   - [ ] One exported standard image opens in the browser/Preview and the `.photofold` bundle downloads with the displayed byte size.
-   - [ ] Invalid, failed-quality, and no-savings cases are understandable and never show invented positive savings; unsupported per-frame rejection behavior is not fabricated.
+   - [ ] **Export selected photo** opens as a standard image and **Download PhotoFold archive** matches the displayed byte size; helper text says PhotoFold is required to reconstruct the complete set.
+   - [ ] Invalid, failed-quality, and no-savings cases are understandable and never show invented positive savings; weak frames visibly use fallback instead of disappearing.
    - [ ] No login, database, cloud service, GPT credential, or source-code inspection is needed.
 5. **Inspect these generated artifacts:** Within `artifacts/gate3/latest/`, inspect `result.json`, `moment.photofold`, `exported-frame.webp`, `ui-e2e-report/index.html`, and `gate1-report.html`; also open the browser-downloaded `PhotoFold-frame-000.webp` and `moment.photofold` files. The Gate 1 report is the processor-evidence cross-check if a displayed value is in doubt.
 6. **Gate failure is indicated by:** A broken workflow; stale/mock/hard-coded metric; UI/processor-artifact mismatch; unsafe path or shell handling; fake progress; inaccessible compare/heatmap/export/bundle; downloaded byte mismatch; misleading savings language; unreadable error state; standalone processing-service requirement; or automated/human verdict `FAIL`.
@@ -901,6 +908,38 @@ make verify-gate3
 - The project owner must still run `make human-verify-gate3 DATASET=data/real-bursts/static-handheld`, inspect the full native-resolution burst, exports, downloads, result evidence, and failure language, then record acceptance separately.
 - This is intentionally one-machine, one-fold-at-a-time behavior. Restart recovery, durable state, generalized rejection, TTL lifecycle, a reusable processing API, and multi-user concurrency remain Gate 2 work.
 - The interactive result compares the package with exact uploaded bytes but does not claim that it reran the matched-quality independent-WebP control. That evidence remains in Gate 1 and Phase 1B.
+
+#### Phase 4P.1 generalized-folding record — 2026-07-20
+
+**Implemented scope**
+
+- Kept the 2.0 alignment threshold but changed its unit from source pixels to `analysis_pixels` on the oriented copy whose longest dimension is at most 800 px. Analysis and package evidence persist the units, analysis size, error threshold, and inlier threshold.
+- Added deterministic best safe same-dimension group selection. Frames that miss alignment or have different normalized dimensions retain their source index and become `independent_source`; fewer than two shared frames produces `independent_only` rather than `not_foldable`.
+- Extended strict manifest version 0.2 and generated Pydantic/JSON Schema/TypeScript contracts with strategy counts, nullable base/reference, per-frame normalized dimensions, and `shared_reference`, `shared_delta`, or `independent_source`. The inventory is an exact storage-mode-derived allow-list.
+- Stored the exact uploaded JPEG/PNG/WebP payload for independent frames. The public package-only decoder applies EXIF orientation and verifies format, opacity, safe pixel count, dimensions, and checksums. Legacy version 0.1 packages are migrated in memory and remain readable.
+- Updated analysis/results/UI with shared/fallback counts, per-frame labels and reasons, fallback savings warnings, neutral terminal language, **Export selected photo**, and **Download PhotoFold archive** plus its reconstruction helper text.
+- Added regression coverage for resolution invariance, the 3024×4032 burst, one/all fallback, mixed dimensions, source order, exact independent reconstruction, hybrid/independent verification, legacy decoding, corruption, terminal mappings, strategy UI, and shared/fallback Playwright workflows.
+
+**Measured selected-treatment evidence**
+
+No parameter research or independent-WebP sweep was rerun. These are one-pass Phase 4P.1 package results using the committed treatment:
+
+| Dataset | Strategy | Shared / fallback | Measured analysis error range | Closed package / exact sources | Mean / minimum SSIM | Terminal |
+|---|---|---:|---:|---:|---:|---|
+| `static-handheld` | `hybrid` | 13 / 2 | 0.692620–1.027088 px | 13,663,060 / 46,659,071 bytes | 0.783225 / 0.715211 | `failed_quality` |
+| `moving-subject` | `hybrid` | 10 / 3 | 0.862348–1.407737 px | 15,901,130 / 25,331,644 bytes | 0.887196 / 0.824598 | `complete` |
+| `camera-motion-or-lighting` | `hybrid` | 10 / 4 | 0.638211–0.922210 px | 11,001,509 / 26,301,637 bytes | 0.850882 / 0.675281 | `failed_quality` |
+
+All three archives passed package-only validation and reconstructed every source-ordered frame. `static-handheld` fell back frames 1 and 6 (zero-based) for inlier ratios 0.7239 and 0.7946; `moving-subject` fell back 0, 1, and 5; `camera-motion-or-lighting` fell back 9–12. No frame failed the now resolution-independent 2.0 analysis-px error threshold. The fallbacks were selected by the unchanged 0.80 inlier requirement, not by dataset identity.
+
+The two `failed_quality` results preserve the actual reconstructions and metrics. The configured 0.85 mean/0.82 per-frame quality thresholds remain the visually reviewed `hdrplus-static` Gate 1 decision and are not generalized, lowered, or bypassed here. Consequently, native `static-handheld` functional project-owner acceptance remains incomplete even though analysis, package construction, integrity, reconstruction, inspection, export, and archive download finish.
+
+**Verification and implementation-agent walkthrough**
+
+- `make verify-gate3` passed on 2026-07-20: Ruff; 22 processor/foundation tests; generated-contract freshness; workspace lint and both typechecks; 8 focused web/bridge tests; the production Next.js build; and 2 real Chromium workflows covering the shared-scene demo plus native per-frame fallback. Both browser workflows completed upload, analysis, fold, inspection, export, and archive download.
+- `make human-verify-gate3 DATASET=data/real-bursts/static-handheld` was exercised in the in-app browser with the owner-authorized 15-frame 3024×4032 dataset. Analysis visibly reported `hybrid`, 13 shared frames, 2 fallback frames, the 2.00 analysis-px threshold, and both measured low-inlier reasons. Fold reconstructed all 15 frames and retained the honest `failed_quality` result with mean/minimum SSIM 0.7832/0.7152.
+- The implementation-agent UI visual review passed: upload cards, ready/fallback language, per-frame Shared/Fallback labels, comparison, heatmap, fallback frame SSIM 1.000000 with `independent source`, selected-photo export, archive download, and the PhotoFold reconstruction helper were visible and usable. Both downloads started successfully, and the browser reported no warnings or errors.
+- This is not project-owner functional acceptance. The native dataset misses the existing quality threshold, so the corresponding owner acceptance checklist remains unchecked pending a later measured and reviewed quality decision.
 
 ### Phase 5 / Gate 4 — Optional semantic preservation
 
