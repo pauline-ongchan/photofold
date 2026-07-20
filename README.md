@@ -2,13 +2,13 @@
 
 PhotoFold is a hackathon prototype exploring whether groups of similar photos can be stored as one shared scene plus frame-specific differences while retaining every frame.
 
-## Current status: Phase 1B accepted; local prototype next
+## Current status: Phase 4P implemented; owner walkthrough pending
 
-This repository implements the Gate 0 foundation, the CLI-only Gate 1 compression proof, and the completed Phase 1B multi-dataset validation experiment:
+This repository implements the Gate 0 foundation, the CLI-only Gate 1 compression proof, the accepted Phase 1B multi-dataset validation experiment, and the automated Gate 3P local prototype:
 
 - a FastAPI `/v1/health` endpoint;
 - a CLI codec doctor and real-dataset validator;
-- a health-only Next.js status page;
+- a local Next.js upload → analyze → fold → inspect → export → bundle workflow;
 - generated OpenAPI and TypeScript contracts;
 - pinned local dependencies and validation commands; and
 - four documented, checksum-verified real bursts: the original Gate 1 set and three canonical Phase 1B scenarios;
@@ -18,11 +18,13 @@ This repository implements the Gate 0 foundation, the CLI-only Gate 1 compressio
 - real archive-byte, RGB SSIM, difference-heatmap, and independent-WebP measurements; and
 - fixed-quality and exact quality-matched independent-WebP controls with per-frame RGB SSIM and PSNR;
 - deterministic all-dataset aggregation and recommendation rules; and
-- self-contained offline HTML experiment reports with artifact-bound human review records.
+- self-contained offline HTML experiment reports with artifact-bound human review records;
+- strict Pydantic/JSON Schema/TypeScript contracts for the private prototype bridge; and
+- run-scoped uploads, fixed shell-free CLI arguments, one active fold, package-only reconstruction artifacts, and focused browser tests.
 
-The Phase 1B automated experiment passes for all three canonical datasets, and the project owner accepts the current reconstruction quality for the hackathon MVP. The final recommendation is `CONTINUE COMPRESSION-FIRST`. Runtime and implementation complexity are documented MVP limitations rather than completion blockers: the current trade-off can be disproportionate for some datasets, and runtime, encoding efficiency, package overhead, and dataset selection require future optimization. There is currently no upload/product flow, processing API, job system, or GPT integration. The Next.js page remains a health-only foundation page.
+The Phase 1B automated experiment passes for all three canonical datasets, and the project owner accepts the current reconstruction quality for the hackathon MVP. The final recommendation is `CONTINUE COMPRESSION-FIRST`. Phase 4P now supplies the local product flow without adding a reusable processing service. Runtime and implementation complexity remain documented MVP limitations: the current trade-off can be disproportionate for some datasets, and runtime, encoding efficiency, package overhead, and dataset selection require future optimization.
 
-For the controlled hackathon prototype, Phase 2 / Gate 2A pipeline hardening and Phase 3 / Gate 2B FastAPI processing routes are explicitly deferred rather than completed. The next target is Phase 4P / Gate 3P: a local end-to-end web flow backed by a narrow, single-run bridge to the real processor CLI. The production-oriented failure matrix, reusable API contract, persistence, concurrency, restart recovery, and TTL lifecycle remain documented future work.
+For the controlled hackathon prototype, Phase 2 / Gate 2A pipeline hardening and Phase 3 / Gate 2B FastAPI processing routes remain explicitly deferred rather than completed. Phase 4P / Gate 3P is implemented and passes automated verification; the project-owner visual walkthrough remains pending. The production-oriented failure matrix, reusable API contract, persistence, concurrency, restart recovery, and TTL lifecycle remain documented future work.
 
 ## Prerequisites
 
@@ -80,7 +82,7 @@ Wait for `Gate 0 services ready`, then open:
 - <http://127.0.0.1:3000>
 - <http://127.0.0.1:8000/docs>
 
-Pass when the frontend visibly reports `Processor connected`, `WebP available`, and the validated `hdrplus-static` frame count; the API docs show `/v1/health`; and the command printed `GATE 0: PASS`. Stop both services with `Ctrl-C`.
+The original health-only frontend has been superseded by the Gate 3P product page. Pass the retained Gate 0 checkpoint when the product page loads, `curl http://127.0.0.1:8000/v1/health` reports the WebP-capable processor and validated dataset, the API docs show only `/v1/health`, and the command printed `GATE 0: PASS`. Stop both services with `Ctrl-C`.
 
 Fail if a URL does not load, WebP is unavailable, fewer than five compatible dataset frames validate, a generated contract is stale, any automated check fails, or an external service/credential is requested.
 
@@ -150,6 +152,32 @@ To reproduce and bind a fresh review after a future full run:
 
 The finalizer rejects stale or edited evidence by checking the recorded artifact hashes before applying the ordered Phase 1B decision rules. The dominant current bottleneck is the sequential native-resolution q1–q100 control sweep; alignment, warping, change analysis, patch encoding, archive verification, and package-only reconstruction add further work. The current implementation may be disproportionate to the storage benefit for some datasets, especially the measured moving-subject relational loss. See `docs/PHASE_1B_SPEC.md` and `docs/PHASE_1B_EXECUTION_PLAN.md` for the experiment contract and execution checkpoints.
 
+## Validate Gate 3P
+
+Install the locked Chromium runtime once, then run the repeatable local-prototype gate:
+
+```bash
+npm exec --workspace apps/web playwright install chromium
+make verify-gate3
+```
+
+The command checks the processor, generated contracts, bridge and UI tests, production build, and one real Chromium workflow. The verified seven-frame run measured 4,408,395 uploaded bytes, a 675,057-byte package, 3,733,338 bytes saved (84.6870%), mean SSIM 0.851131, and minimum SSIM 0.826471. These values came from `artifacts/gate3/latest/result.json`; the UI does not hard-code them.
+
+Expected evidence under `artifacts/gate3/latest/` is:
+
+- `result.json` and the exact `moment.photofold` it measures;
+- `exported-frame.webp` from the package-only decoder;
+- `ui-e2e-report/index.html`; and
+- `gate1-report.html`, copied from the accepted offline Gate 1 evidence when present.
+
+For the project-owner walkthrough:
+
+```bash
+make human-verify-gate3 DATASET=data/real-bursts/static-handheld
+```
+
+Open <http://127.0.0.1:3000>, upload the dataset files, and complete upload → analyze → fold → inspect → export → bundle. The interactive path applies the selected treatment once and does not rerun the multi-hour independent-WebP research sweep. Run `make clean-gate3` to remove all local Gate 3P runs and published evidence.
+
 ## Manual development servers
 
 Processor:
@@ -163,6 +191,8 @@ Frontend, in a second terminal:
 ```bash
 npm run dev --workspace apps/web
 ```
+
+The frontend invokes the deterministic CLI directly through its private localhost-only bridge. The FastAPI process is not required for Gate 3P.
 
 ## Curated dataset
 

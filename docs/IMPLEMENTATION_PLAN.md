@@ -1,6 +1,6 @@
 # PhotoFold Implementation Plan
 
-**Status:** Phase 0, the CLI-only Phase 1, and Phase 1B are implemented and accepted for the hackathon MVP. Phase 2 / Gate 2A and Phase 3 / Gate 2B are explicitly deferred rather than completed. The next prototype target is Phase 4P / Gate 3P, a local end-to-end web flow using a narrow CLI bridge. The deferred hardening and FastAPI service remain the production-oriented path.
+**Status:** Phase 0, the CLI-only Phase 1, and Phase 1B are implemented and accepted for the hackathon MVP. Phase 4P / Gate 3P is implemented and passes automated verification; project-owner visual acceptance remains pending. Phase 2 / Gate 2A and Phase 3 / Gate 2B are explicitly deferred rather than completed. The deferred hardening and FastAPI service remain the production-oriented path.
 **Source of truth:** `docs/PhotoFold_Developer_PRD.md`
 **Demo context only:** `docs/PhotoFold_Demo_Script.md`
 **Planning date:** 2026-07-18
@@ -823,7 +823,7 @@ The manual two-terminal smoke command should also be wrapped by `make verify-gat
 
 ### Phase 4P / Gate 3P — Local end-to-end prototype flow
 
-**Status:** Next implementation target for the hackathon prototype. This prototype profile intentionally proceeds while Gate 2A and Gate 2B remain deferred.
+**Status:** Implemented with automated verification passing on 2026-07-19. Project-owner visual acceptance remains pending. This prototype profile intentionally proceeds while Gate 2A and Gate 2B remain deferred.
 
 **Goal:** Build only the local UI and bridge required to exercise and prove the real processor without introducing a standalone processing service.
 
@@ -877,6 +877,30 @@ make verify-gate3
    - [ ] No login, database, cloud service, GPT credential, or source-code inspection is needed.
 5. **Inspect these generated artifacts:** Within `artifacts/gate3/latest/`, inspect `result.json`, `moment.photofold`, `exported-frame.webp`, `ui-e2e-report/index.html`, and `gate1-report.html`; also open the browser-downloaded `PhotoFold-frame-000.webp` and `moment.photofold` files. The Gate 1 report is the processor-evidence cross-check if a displayed value is in doubt.
 6. **Gate failure is indicated by:** A broken workflow; stale/mock/hard-coded metric; UI/processor-artifact mismatch; unsafe path or shell handling; fake progress; inaccessible compare/heatmap/export/bundle; downloaded byte mismatch; misleading savings language; unreadable error state; standalone processing-service requirement; or automated/human verdict `FAIL`.
+
+#### Phase 4P implementation record — 2026-07-19
+
+**Implemented scope**
+
+- Added strict processor-owned input, analysis, result, artifact, and error contracts with generated JSON Schema and TypeScript output. FastAPI remains health-only.
+- Added single-pass `prototype-analyze` and `prototype-fold` commands. Analysis validates real uploaded files and persists reference/alignment/source evidence; fold rechecks the source snapshot, reuses those transforms, creates and verifies the package, reconstructs through the public decoder, and emits measured storage, SSIM, heatmaps, warnings, and terminal status.
+- Added the private Next.js bridge with controlled upload names, UUID-scoped workspaces, path containment, runtime schema checks, fixed `spawn` arguments with `shell: false`, an atomic one-fold lock, allow-listed artifact routes, bundle stat/checksum verification, and startup/manual cleanup.
+- Replaced the health-only page with the complete upload, analysis, fold, result, frame comparison, heatmap, zoom, export, and bundle experience. Deferred analysis fields and offline relational-control provenance are explicitly labeled.
+- Added focused processor, bridge, contract, and rendering tests plus one real Playwright Chromium workflow. The accepted Gate 1 evidence report is copied into the latest Gate 3 evidence when it exists.
+
+**Automated result**
+
+| Frames | Original bytes | Package bytes | Saved | Mean SSIM | Minimum SSIM | Result |
+|---:|---:|---:|---:|---:|---:|---|
+| 7/7 | 4,408,395 | 675,057 | 3,733,338 (84.6870%) | 0.851131 | 0.826471 | `complete` |
+
+`make verify-gate3` passed: Ruff; 17 processor/foundation tests; generated-contract freshness; workspace lint and typechecks; 7 focused web/bridge tests; the production Next.js build; and the real Chromium upload → remove/re-add → analyze → fold → heatmap → export → bundle workflow. The downloaded package byte count and SHA-256 matched `result.json`. An implementation-agent browser review also exercised every visible step and reported no browser warnings or errors.
+
+**Remaining checkpoint and limitations**
+
+- The project owner must still run `make human-verify-gate3 DATASET=data/real-bursts/static-handheld`, inspect the full native-resolution burst, exports, downloads, result evidence, and failure language, then record acceptance separately.
+- This is intentionally one-machine, one-fold-at-a-time behavior. Restart recovery, durable state, generalized rejection, TTL lifecycle, a reusable processing API, and multi-user concurrency remain Gate 2 work.
+- The interactive result compares the package with exact uploaded bytes but does not claim that it reran the matched-quality independent-WebP control. That evidence remains in Gate 1 and Phase 1B.
 
 ### Phase 5 / Gate 4 — Optional semantic preservation
 
