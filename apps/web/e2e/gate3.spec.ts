@@ -90,7 +90,11 @@ test("native burst completes with explicit per-frame fallback", async ({ page })
   await page.getByRole("button", { name: "Analyze this moment" }).click();
   const analysisRegion = page.getByRole("region", { name: "Processor analysis" });
   await expect(analysisRegion.getByText("Ready to fold", { exact: true })).toBeVisible();
-  await expect(analysisRegion.getByText(/frames can share scene data; \d+ will be stored independently/)).toBeVisible();
+  await expect(
+    analysisRegion.getByText("13 frames can share scene data; 2 will be stored independently.", {
+      exact: true,
+    }),
+  ).toBeVisible();
   await expect(analysisRegion.getByText("Fallback", { exact: true })).toHaveCount(2);
 
   await page.getByRole("button", { name: "Fold this moment" }).click();
