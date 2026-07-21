@@ -85,7 +85,8 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .data-chip { border: 1px solid rgb(23 33 27 / 10%); border-radius: 999px; padding: 0.45rem 0.65rem; background: rgb(255 255 255 / 55%); }
 
 .explanation-card,
-.viewer-guide {
+.viewer-guide,
+.selected-photo-summary {
   border: 1px solid rgb(23 33 27 / 10%);
   border-radius: 1rem;
   background: #f7f5ef;
@@ -107,6 +108,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 }
 
 .explanation-details[open] > summary { margin-bottom: 0.25rem; }
+.viewer-guide { padding-block: 0.75rem; }
 .viewer-guide-heatmap { border-color: rgb(138 90 32 / 22%); background: #fff7e6; }
 
 .view-tab { border: 1px solid rgb(23 33 27 / 12%); border-radius: 999px; padding: 0.5rem 0.75rem; background: transparent; color: #607066; font-size: 0.78rem; font-weight: 700; cursor: pointer; }
@@ -122,10 +124,14 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .viewer-overlay { position: absolute; inset: 0; overflow: hidden; }
 .viewer-overlay img { width: 100%; max-width: none; }
 .comparison-line { position: absolute; inset-block: 0; width: 2px; background: white; box-shadow: 0 0 0 1px rgb(23 33 27 / 30%); pointer-events: none; }
-.frame-selector { min-width: 7rem; border: 1px solid rgb(23 33 27 / 12%); border-radius: 0.9rem; padding: 0.7rem; background: white; text-align: left; color: #607066; cursor: pointer; }
+.frame-selector { min-width: 8.5rem; border: 1px solid rgb(23 33 27 / 12%); border-radius: 0.9rem; padding: 0.7rem; background: white; text-align: left; color: #607066; cursor: pointer; }
 .frame-selector span { display: block; font-size: 0.7rem; }
 .frame-selector strong { display: block; margin-top: 0.2rem; color: #17211b; }
+.frame-selector em { display: block; margin-top: 0.25rem; color: #8b2f20; font-size: 0.7rem; font-style: normal; font-weight: 700; }
 .frame-selector-active { border-color: #496151; background: #eef2e9; }
+
+.collection-result-grid { display: grid; gap: 1.25rem; }
+.collection-size-result { border-radius: 1rem; background: #f3f0e8; padding: 1.25rem; }
 
 .step-number { display: grid; height: 1.75rem; width: 1.75rem; flex: 0 0 auto; place-items: center; border: 1px solid rgb(255 255 255 / 24%); border-radius: 999px; color: #afbbb2; font-size: 0.75rem; font-weight: 800; }
 .step-number-active { border-color: #d9eadc; background: #d9eadc; color: #17211b; }
@@ -136,6 +142,7 @@ input[type="range"] { accent-color: #496151; }
 
 @media (min-width: 640px) {
   .panel { padding: 1.75rem; }
+  .collection-result-grid { grid-template-columns: minmax(0, 1fr) minmax(15rem, 0.85fr); align-items: center; }
 }
 
 @media (prefers-reduced-motion: reduce) {

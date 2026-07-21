@@ -220,16 +220,32 @@ describe("PhotoFold Gate 3 workflow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create PhotoFold collection" }));
 
     expect(await screen.findByText("Your collection is ready, but it is not smaller")).toBeInTheDocument();
-    expect(screen.getByText("Size difference")).toBeInTheDocument();
     expect(screen.queryByText("Space saved")).not.toBeInTheDocument();
     expect(screen.queryByText("Your smaller photo collection is ready")).not.toBeInTheDocument();
     expect(screen.getByText("Download collection")).toBeInTheDocument();
-    expect(screen.getByText(/needs PhotoFold to export photos/)).toBeInTheDocument();
-    const technicalDetails = screen.getByText("Technical details").closest("details");
-    expect(technicalDetails).not.toHaveAttribute("open");
-    fireEvent.click(screen.getByText("Technical details"));
-    expect(screen.getByText("What does SSIM mean?")).toBeInTheDocument();
-    expect(screen.getByText(/1.000 is a perfect measured match/)).toBeInTheDocument();
+    expect(screen.getByText(/Contains everything needed to rebuild and export all photos/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Collection result" })).toBeInTheDocument();
+    expect(screen.getByText("5 photos preserved")).toBeInTheDocument();
+    expect(screen.getByText("4 using shared storage")).toBeInTheDocument();
+    expect(screen.getByText("1 stored whole to protect quality")).toBeInTheDocument();
+    expect(screen.getByText("500 B larger than the uploaded files")).toBeInTheDocument();
+    expect(screen.queryByText("Quality passed")).not.toBeInTheDocument();
+
+    const photoSelector = screen.getByLabelText("Photo selector");
+    expect(photoSelector).toContainElement(screen.getByRole("button", { name: "Photo 1 · Shared storage" }));
+    const storedWholeButton = screen.getByRole("button", { name: "Photo 5 · Stored whole" });
+    expect(photoSelector).toContainElement(storedWholeButton);
+    fireEvent.click(storedWholeButton);
+    expect(screen.getByRole("heading", { name: "Photo 5 · frame-4.jpg" })).toBeInTheDocument();
+    expect(screen.getByText("Stored whole · Protects quality")).toBeInTheDocument();
+    expect(screen.getByText(/stored independently because sharing the scene was not a safe fit/)).toBeInTheDocument();
+
+    const advancedDetails = screen.getByText("Advanced details").closest("details");
+    expect(advancedDetails).not.toHaveAttribute("open");
+    fireEvent.click(screen.getByText("Advanced details"));
+    expect(screen.getByText(/SSIM compares structure, contrast, and detail/)).toBeInTheDocument();
+    expect(screen.getByText("About these results")).toBeInTheDocument();
+    expect(advancedDetails?.querySelectorAll("li")).toHaveLength(3);
     expect(screen.getByText(/1× fits the whole photo/)).toBeInTheDocument();
     const zoom = screen.getByRole("slider", { name: "Zoom" });
     expect(zoom).toHaveValue("1");
@@ -251,7 +267,7 @@ describe("PhotoFold Gate 3 workflow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Change heatmap" }));
     expect(screen.getByText("How to read the change heatmap")).toBeInTheDocument();
     expect(screen.getByText(/Colors are boosted so subtle differences are easier to spot/)).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: /difference for frame-2.jpg/i })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /difference for frame-4.jpg/i })).toBeInTheDocument();
   });
 
   it("uses neutral independent-only strategy language", async () => {

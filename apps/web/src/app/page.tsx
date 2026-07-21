@@ -16,6 +16,7 @@ type UploadItem = {
 };
 
 type ViewMode = "compare" | "original" | "reconstruction" | "difference";
+type FrameStorageMode = PrototypeResult["frames"][number]["storage_mode"];
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes.toLocaleString()} B`;
@@ -31,6 +32,20 @@ function formatBytes(bytes: number): string {
 
 function formatPercent(value: number): string {
   return `${Math.abs(value).toFixed(1)}%`;
+}
+
+function storageCopy(mode: FrameStorageMode) {
+  return mode === "independent_source"
+    ? {
+        cardLabel: "Stored whole",
+        headline: "Stored whole · Protects quality",
+        description: "This photo was stored independently because sharing the scene was not a safe fit.",
+      }
+    : {
+        cardLabel: "Shared storage",
+        headline: "Shared storage · Saves space",
+        description: "This photo reuses the collection’s shared scene and stores only its unique details.",
+      };
 }
 
 function friendlyFallbackReason(reason: string | null | undefined): string {
@@ -504,7 +519,6 @@ function ResultsStep(props: ResultsStepProps) {
     originY: number;
   } | null>(null);
   const base = `/api/prototype/runs/${runId}/frames/${frame.index}`;
-  const successful = result.status === "complete";
   const statusTitle = result.status === "complete"
     ? "Your smaller photo collection is ready"
     : result.status === "complete_no_savings"
@@ -513,12 +527,21 @@ function ResultsStep(props: ResultsStepProps) {
         ? "Your photos were rebuilt, but quality was below our target"
         : "We could not finish this collection";
   const statusMessage = result.status === "complete"
-    ? "Every photo passed the quality check and the collection is smaller."
+    ? "All photos are preserved in a smaller collection."
     : result.status === "complete_no_savings"
-      ? "Quality passed, but this collection is larger than your uploads."
+      ? "All photos are preserved, but this collection is not smaller than your uploads."
       : result.status === "failed_quality"
         ? "At least one photo missed the quality target. Compare it before downloading."
         : "PhotoFold could not finish. See the error below.";
+  const selectedStorage = storageCopy(frame.storage_mode);
+  const savedStorage = result.storage?.is_smaller_than_originals && result.storage.bytes_saved > 0;
+  const sizeResult = !result.storage
+    ? "Size unavailable"
+    : savedStorage
+      ? `${formatBytes(result.storage.bytes_saved)} saved · ${formatPercent(result.storage.percent_saved)} less storage`
+      : result.storage.package_total_bytes === result.storage.original_total_bytes
+        ? "No storage saved for this set"
+        : `${formatBytes(Math.abs(result.storage.package_total_bytes - result.storage.original_total_bytes))} larger than the uploaded files`;
 
   function resetPan() {
     setPan({ x: 0, y: 0 });
@@ -588,165 +611,170 @@ function ResultsStep(props: ResultsStepProps) {
       <section className="panel" aria-labelledby="results-heading">
         <div className="panel-heading">
           <div>
-            <p className="eyebrow">Step 3 of 4 · Results</p>
+            <p className="eyebrow">Step 4 of 4 · Compare</p>
             <h2 id="results-heading" className="section-title">{statusTitle}</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#607066]">{statusMessage}</p>
           </div>
-          <StatusBadge status={result.status} />
+          {frame.reconstructed && (
+            <div className="flex max-w-sm flex-col items-end gap-2">
+              <div className="flex flex-wrap justify-end gap-2">
+                <a className="button-primary" href={`${base}/export`}>Save this rebuilt photo</a>
+                <a className="button-secondary" href={`/api/prototype/runs/${runId}/bundle`}>Download collection</a>
+              </div>
+              <p className="text-right text-xs leading-5 text-[#738077]">Contains everything needed to rebuild and export all photos.</p>
+            </div>
+          )}
         </div>
 
-        <p className="mb-5 max-w-3xl text-sm leading-6 text-[#607066]">{statusMessage}</p>
+        {result.error ? <ErrorPanel error={{ error: result.error }} nested /> : null}
 
-        {result.storage && result.quality && result.package_contents ? (
+        {frame.reconstructed && (
           <>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Metric label="Original photos" value={formatBytes(result.storage.original_total_bytes)} description="Uploaded file size." />
-              <Metric label="New collection" value={formatBytes(result.storage.package_total_bytes)} description="Download size." />
-              <Metric
-                label={successful ? "Space saved" : "Size difference"}
-                value={successful ? `${formatBytes(result.storage.bytes_saved)} · ${formatPercent(result.storage.percent_saved)}` : `${formatBytes(Math.abs(result.storage.byte_delta))} ${result.storage.byte_delta < 0 ? "larger" : "smaller"}`}
-                description="Compared with your uploads."
-                tone={successful ? "positive" : "neutral"}
-              />
-              <Metric
-                label="Photo quality"
-                value={result.quality.threshold_pass ? "Passed" : "Needs review"}
-                description={result.quality.threshold_pass ? "Every rebuilt photo passed." : "Compare the photos before saving."}
-                tone={result.quality.threshold_pass ? "positive" : "neutral"}
-              />
+            <div className="mb-5 flex gap-2 overflow-x-auto pb-2" aria-label="Photo selector">
+              {result.frames.map((item) => {
+                const itemStorage = storageCopy(item.storage_mode);
+                const needsReview = item.quality_threshold_pass === false;
+                return (
+                  <button
+                    className={`frame-selector ${item.index === frame.index ? "frame-selector-active" : ""}`}
+                    type="button"
+                    key={item.index}
+                    aria-pressed={item.index === frame.index}
+                    aria-label={`Photo ${item.index + 1} · ${itemStorage.cardLabel}${needsReview ? " · Needs review" : ""}`}
+                    onClick={() => {
+                      resetPan();
+                      props.setSelectedFrame(item.index);
+                    }}
+                  >
+                    <span>Photo {item.index + 1}</span>
+                    <strong>{itemStorage.cardLabel}</strong>
+                    {needsReview && <em>Needs review</em>}
+                  </button>
+                );
+              })}
             </div>
 
-            <details className="explanation-details mt-4">
-              <summary>Technical details</summary>
-              <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                <div className="explanation-card">
-                <p className="font-semibold text-[#17211b]">What does SSIM mean?</p>
-                <p className="mt-2 text-sm leading-6 text-[#607066]">
-                  SSIM (<strong className="text-[#35483b]">Structural Similarity Index</strong>) compares structure, contrast, and detail. 1.000 is a perfect measured match; higher is better.
-                </p>
-                <p className="mt-2 text-xs leading-5 text-[#738077]">Average covers the set; lowest flags the weakest photo. Always inspect the images.</p>
-                </div>
-                <div className="explanation-card">
-                  <p className="font-semibold text-[#17211b]">Quality measurements</p>
-                  <p className="mt-2 text-sm leading-6 text-[#607066]">
-                    <strong className="text-[#35483b]">{result.quality.mean_ssim.toFixed(4)}</strong> average · <strong className="text-[#35483b]">{result.quality.minimum_ssim.toFixed(4)}</strong> lowest
-                  </p>
-                  <p className="mt-2 text-xs leading-5 text-[#738077]">Targets: {result.quality.min_mean_threshold.toFixed(2)} average and {result.quality.min_per_frame_threshold.toFixed(2)} for every photo.</p>
-                </div>
-              </div>
-              <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <DataTerm label="Storage approach" value={`${result.shared_frame_count} sharing space · ${result.fallback_frame_count} kept whole`} />
-                <DataTerm label="Photos rebuilt" value={`${result.reconstructed_frame_count}`} description="Photos successfully recreated from this collection." />
-                <DataTerm label="Files inside collection" value={`${result.package_contents.member_count}`} description="All images, change data, and instructions stored in the .photofold file." />
-                <DataTerm label="Changed areas stored" value={`${result.package_contents.patch_count}`} description="Small regions saved separately because they differ from the shared scene." />
-                <DataTerm label="Photos kept whole" value={`${result.package_contents.independent_source_count}`} description="Photos stored independently because sharing was not a safe fit." />
-                <DataTerm label="Integrity fingerprint" value={`${result.storage.package_sha256.slice(0, 12)}…`} description="A SHA-256 fingerprint used to confirm the downloaded file has not changed or become corrupted." />
-              </dl>
-              <p className="mt-4 text-xs leading-5 text-[#738077]">The size comparison uses the exact files you uploaded. It does not compare every possible photo format or compression setting.</p>
-              {result.warnings.length > 0 && <ul className="mt-3 space-y-1 text-xs leading-5 text-[#738077]">{result.warnings.map((warning) => <li key={warning}>— {warning}</li>)}</ul>}
-            </details>
-          </>
-        ) : result.error ? <ErrorPanel error={{ error: result.error }} nested /> : null}
-      </section>
-
-      {frame.reconstructed && (
-        <section className="panel" aria-labelledby="viewer-heading">
-          <div className="panel-heading">
-            <div>
-              <p className="eyebrow">Step 4 of 4 · Compare</p>
-              <h2 id="viewer-heading" className="section-title">Compare photo {frame.index + 1} · {frame.original_filename}</h2>
-              <p className="mt-1 text-sm text-[#607066]">
-                <strong className="text-[#35483b]">{frame.quality_threshold_pass ? "Quality passed" : "Needs review"}</strong> · {frame.storage_mode === "independent_source" ? "Kept whole" : "Shares space"}
-              </p>
-              {frame.fallback_reason && <p className="mt-2 text-sm text-[#8a5a20]">{friendlyFallbackReason(frame.fallback_reason)}</p>}
+            <div className="selected-photo-summary" aria-live="polite">
+              <p className="eyebrow">Selected photo</p>
+              <h3 className="mt-1 text-xl font-semibold tracking-[-0.025em]">Photo {frame.index + 1} · {frame.original_filename}</h3>
+              <p className="mt-3 font-semibold text-[#35483b]">{selectedStorage.headline}</p>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-[#607066]">{selectedStorage.description}</p>
+              {frame.quality_threshold_pass === false && <p className="mt-2 text-sm font-semibold text-[#8b2f20]">Needs review · Compare this photo closely before saving.</p>}
             </div>
-            <div className="flex flex-wrap gap-2">
-              <a className="button-primary" href={`${base}/export`}>Save this rebuilt photo</a>
-              <a className="button-secondary" href={`/api/prototype/runs/${runId}/bundle`}>Download collection</a>
-            </div>
-          </div>
-          <p className="mb-4 rounded-xl bg-[#f3f0e8] px-4 py-3 text-xs leading-5 text-[#607066]">
-            A <strong className="text-[#35483b]">.photofold file</strong> holds the full set and needs PhotoFold to export photos.
-          </p>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#17211b]/10 pb-4">
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Viewer mode">
+            <div className="mt-5 flex flex-wrap gap-2" role="group" aria-label="Viewer mode">
               {(["compare", "original", "reconstruction", "difference"] as ViewMode[]).map((mode) => (
                 <button className={`view-tab ${props.viewMode === mode ? "view-tab-active" : ""}`} type="button" key={mode} onClick={() => props.setViewMode(mode)}>
                   {mode === "difference" ? "Change heatmap" : mode === "reconstruction" ? "Rebuilt photo" : mode[0].toUpperCase() + mode.slice(1)}
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-3">
-              {props.zoom > 1 && (
-                <button className="view-reset-button" type="button" onClick={() => setViewerZoom(1)}>
-                  Fit
-                </button>
+
+            <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-[#17211b]/10 pb-4">
+              <div className="flex items-center gap-3">
+                {props.zoom > 1 && (
+                  <button className="view-reset-button" type="button" onClick={() => setViewerZoom(1)}>
+                    Fit
+                  </button>
+                )}
+                <label className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#607066]">
+                  Zoom {zoomLabel(props.zoom)}
+                  <input aria-label="Zoom" type="range" min="1" max="3" step="0.25" value={props.zoom} onChange={(event) => setViewerZoom(Number(event.target.value))} />
+                </label>
+              </div>
+              {props.viewMode === "compare" && (
+                <label className="flex min-w-[min(100%,18rem)] flex-1 items-center gap-3 text-xs font-semibold text-[#607066]">
+                  Original {props.comparison}%
+                  <input className="min-w-0 flex-1" aria-label="Comparison position" type="range" min="0" max="100" value={props.comparison} onChange={(event) => props.setComparison(Number(event.target.value))} />
+                  Rebuilt
+                </label>
               )}
-              <label className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#607066]">
-                Zoom {zoomLabel(props.zoom)}
-                <input aria-label="Zoom" type="range" min="1" max="3" step="0.25" value={props.zoom} onChange={(event) => setViewerZoom(Number(event.target.value))} />
-              </label>
             </div>
-          </div>
 
-          <ViewerGuide mode={props.viewMode} />
+            <ViewerGuide mode={props.viewMode} />
 
-          {props.viewMode === "compare" && (
-            <label className="mt-4 flex items-center gap-3 text-xs font-semibold text-[#607066]">
-              Original side {props.comparison}%
-              <input className="flex-1" aria-label="Comparison position" type="range" min="0" max="100" value={props.comparison} onChange={(event) => props.setComparison(Number(event.target.value))} />
-              Rebuilt side
-            </label>
-          )}
-
-          <div
-            className={`viewer-stage mt-4 ${props.zoom > 1 ? "viewer-stage-pannable" : ""} ${panning ? "viewer-stage-panning" : ""}`}
-            data-testid="frame-viewer"
-            aria-label={props.zoom > 1 ? "Photo viewer. Drag to pan." : "Photo viewer"}
-            onPointerDown={beginPan}
-            onPointerMove={movePan}
-            onPointerUp={endPan}
-            onPointerCancel={endPan}
-          >
             <div
-              ref={canvasRef}
-              className={`viewer-canvas ${panning ? "viewer-canvas-panning" : ""}`}
-              style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${props.zoom})` }}
+              className={`viewer-stage mt-4 ${props.zoom > 1 ? "viewer-stage-pannable" : ""} ${panning ? "viewer-stage-panning" : ""}`}
+              data-testid="frame-viewer"
+              aria-label={props.zoom > 1 ? "Photo viewer. Drag to pan." : "Photo viewer"}
+              onPointerDown={beginPan}
+              onPointerMove={movePan}
+              onPointerUp={endPan}
+              onPointerCancel={endPan}
             >
-              {props.viewMode === "compare" ? (
-                <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={`${base}/reconstruction`} alt={`Reconstruction of ${frame.original_filename}`} />
-                  <div className="viewer-overlay" style={{ clipPath: `inset(0 ${100 - props.comparison}% 0 0)` }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={`${base}/original`} alt={`Original ${frame.original_filename}`} />
-                  </div>
-                  <div className="comparison-line" style={{ left: `${props.comparison}%` }} />
-                </>
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img className={props.viewMode === "difference" ? "difference-heatmap" : ""} src={`${base}/${props.viewMode}`} alt={`${props.viewMode} for ${frame.original_filename}`} />
-              )}
-            </div>
-          </div>
-
-          <div className="mt-4 flex gap-2 overflow-x-auto pb-2" aria-label="Frame browser">
-            {result.frames.map((item) => (
-              <button
-                className={`frame-selector ${item.index === frame.index ? "frame-selector-active" : ""}`}
-                type="button"
-                key={item.index}
-                onClick={() => {
-                  resetPan();
-                  props.setSelectedFrame(item.index);
-                }}
+              <div
+                ref={canvasRef}
+                className={`viewer-canvas ${panning ? "viewer-canvas-panning" : ""}`}
+                style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${props.zoom})` }}
               >
-                <span>Photo {item.index + 1}</span>
-                <strong>{item.quality_threshold_pass ? "Quality passed" : "Needs review"}</strong>
-              </button>
-            ))}
+                {props.viewMode === "compare" ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={`${base}/reconstruction`} alt={`Reconstruction of ${frame.original_filename}`} />
+                    <div className="viewer-overlay" style={{ clipPath: `inset(0 ${100 - props.comparison}% 0 0)` }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={`${base}/original`} alt={`Original ${frame.original_filename}`} />
+                    </div>
+                    <div className="comparison-line" style={{ left: `${props.comparison}%` }} />
+                  </>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img className={props.viewMode === "difference" ? "difference-heatmap" : ""} src={`${base}/${props.viewMode}`} alt={`${props.viewMode} for ${frame.original_filename}`} />
+                )}
+              </div>
+            </div>
+          </>
+        )}
+      </section>
+
+      {result.storage && result.quality && result.package_contents && (
+        <section className="panel" aria-labelledby="collection-result-heading">
+          <p className="eyebrow">Measured from the completed collection</p>
+          <h2 id="collection-result-heading" className="section-title">Collection result</h2>
+          <div className="collection-result-grid mt-5">
+            <div>
+              <p className="text-2xl font-semibold tracking-[-0.035em]">{result.reconstructed_frame_count} photos preserved</p>
+              <p className="mt-3 text-sm leading-6 text-[#607066]">{result.shared_frame_count} using shared storage</p>
+              <p className="text-sm leading-6 text-[#607066]">{result.fallback_frame_count} stored whole to protect quality</p>
+            </div>
+            <div className="collection-size-result">
+              <p className="font-mono text-sm text-[#607066]">{formatBytes(result.storage.original_total_bytes)} <span aria-hidden="true">→</span> {formatBytes(result.storage.package_total_bytes)}</p>
+              <p className={`mt-2 text-xl font-semibold ${savedStorage ? "text-[#215f36]" : "text-[#8a5a20]"}`}>{sizeResult}</p>
+            </div>
           </div>
         </section>
+      )}
+
+      {result.storage && result.quality && result.package_contents && (
+        <details className="explanation-details">
+          <summary>Advanced details</summary>
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            <div className="explanation-card">
+              <p className="font-semibold text-[#17211b]">Visual match: {result.quality.threshold_pass ? "Meets quality target" : "Needs review"}</p>
+              <p className="mt-2 text-sm leading-6 text-[#607066]">SSIM: <strong className="text-[#35483b]">{result.quality.mean_ssim.toFixed(4)}</strong> average · <strong className="text-[#35483b]">{result.quality.minimum_ssim.toFixed(4)}</strong> lowest</p>
+              <p className="mt-2 text-xs leading-5 text-[#738077]">SSIM compares structure, contrast, and detail. 1.000 is a perfect measured match; higher is better.</p>
+            </div>
+            <div className="explanation-card">
+              <p className="font-semibold text-[#17211b]">Selected photo</p>
+              <p className="mt-2 text-sm leading-6 text-[#607066]">{selectedStorage.cardLabel} · SSIM {frame.ssim?.toFixed(4) ?? "Unavailable"} · {frame.patch_count ?? 0} changed region{frame.patch_count === 1 ? "" : "s"} stored</p>
+              {frame.fallback_reason && <p className="mt-2 text-xs leading-5 text-[#738077]">{friendlyFallbackReason(frame.fallback_reason)}</p>}
+            </div>
+          </div>
+          <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <DataTerm label="Storage method" value={`${result.shared_frame_count} shared · ${result.fallback_frame_count} whole`} description="Shared photos reuse the scene; independently stored photos preserve their full source." />
+            <DataTerm label="Changed regions stored" value={`${result.package_contents.patch_count}`} description="Unique areas saved separately from the shared scene." />
+            <DataTerm label="Files inside collection" value={`${result.package_contents.member_count}`} description="Images, changed regions, and rebuild instructions in the archive." />
+            <DataTerm label="Integrity fingerprint" value={`${result.storage.package_sha256.slice(0, 12)}…`} description="Used to confirm the downloaded collection has not changed." />
+          </dl>
+          <div className="mt-5 border-t border-[#17211b]/10 pt-4">
+            <p className="font-semibold text-[#17211b]">About these results</p>
+            <ul className="mt-2 space-y-1 text-xs leading-5 text-[#738077]">
+              <li>— Results reflect this uploaded set and its exact source files; matched-quality comparisons come from a separate benchmark and may vary with other formats or settings.</li>
+              <li>— Final savings include photos stored whole and are measured from the completed .photofold archive.</li>
+              <li>— This prototype processes one collection at a time and does not preserve unfinished sessions after a restart.</li>
+            </ul>
+          </div>
+        </details>
       )}
     </div>
   );
@@ -821,9 +849,9 @@ function StatusBadge({ status, label }: { status: string; label?: string }) {
   const positive = status === "safe_to_fold" || status === "shared_scene" || status === "complete";
   const warning = status === "hybrid" || status === "independent_only" || status === "complete_no_savings" || status === "failed_quality";
   const friendlyLabel = status === "complete"
-    ? "Smaller & quality checked"
+    ? "Smaller collection"
     : status === "complete_no_savings"
-      ? "Quality checked · Not smaller"
+      ? "Collection ready · Not smaller"
       : status === "failed_quality"
         ? "Needs a closer look"
         : status === "failed"

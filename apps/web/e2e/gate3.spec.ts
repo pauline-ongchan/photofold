@@ -15,6 +15,18 @@ const fallbackManifest = JSON.parse(
 ) as { files: Array<{ path: string }> };
 const fallbackFiles = fallbackManifest.files.map((item) => resolve(fallbackDataset, item.path));
 
+function formatBytesForTest(bytes: number): string {
+  if (bytes < 1024) return `${bytes.toLocaleString()} B`;
+  const units = ["KB", "MB", "GB"];
+  let value = bytes / 1024;
+  let unit = units[0];
+  for (let index = 1; index < units.length && value >= 1024; index += 1) {
+    value /= 1024;
+    unit = units[index];
+  }
+  return `${value.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${unit}`;
+}
+
 test("curated upload → analyze → fold → inspect → export → bundle", async ({ page }, testInfo) => {
   await page.goto("/");
   const input = page.locator('input[type="file"]');
@@ -39,8 +51,8 @@ test("curated upload → analyze → fold → inspect → export → bundle", as
   await expect(page.getByRole("heading", { name: "Your smaller photo collection is ready" })).toBeVisible({
     timeout: 120_000,
   });
-  await page.getByText("Technical details").click();
-  await expect(page.getByText("What does SSIM mean?")).toBeVisible();
+  await page.getByText("Advanced details").click();
+  await expect(page.getByText("Visual match: Meets quality target")).toBeVisible();
 
   const resultPath = resolve(repositoryRoot, "artifacts/gate3/latest/result.json");
   const result = JSON.parse(await readFile(resultPath, "utf8"));
@@ -48,11 +60,21 @@ test("curated upload → analyze → fold → inspect → export → bundle", as
   expect(result.reconstructed_frame_count).toBe(7);
   expect(result.storage.package_total_bytes).toBeGreaterThan(0);
   expect(result.storage.package_total_bytes).toBeLessThan(result.storage.original_total_bytes);
-  await expect(page.getByText("Space saved")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Collection result" })).toBeVisible();
+  await expect(page.getByText("7 photos preserved")).toBeVisible();
+  await expect(page.getByText(`${result.shared_frame_count} using shared storage`)).toBeVisible();
+  await expect(page.getByText(`${result.fallback_frame_count} stored whole to protect quality`)).toBeVisible();
+  await expect(page.getByText(`${formatBytesForTest(result.storage.bytes_saved)} saved · ${result.storage.percent_saved.toFixed(1)}% less storage`)).toBeVisible();
   await expect(page.getByText(result.quality.mean_ssim.toFixed(4), { exact: true })).toBeVisible();
   await expect(page.getByText(result.quality.minimum_ssim.toFixed(4), { exact: true })).toBeVisible();
 
+  const photoSelector = page.getByLabel("Photo selector");
   const viewer = page.getByTestId("frame-viewer");
+  await expect(photoSelector.getByRole("button")).toHaveCount(7);
+  const selectorBox = await photoSelector.boundingBox();
+  const initialViewerBox = await viewer.boundingBox();
+  if (!selectorBox || !initialViewerBox) throw new Error("Comparison layout bounds are unavailable");
+  expect(selectorBox.y).toBeLessThan(initialViewerBox.y);
   const zoom = page.getByLabel("Zoom");
   const viewerCanvas = viewer.locator(".viewer-canvas");
   const viewerFitsWithoutScroll = () => viewer.evaluate((element) =>
@@ -98,13 +120,13 @@ test("curated upload → analyze → fold → inspect → export → bundle", as
   await expect(difference).toBeVisible();
   await expect.poll(() => difference.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
   await expect.poll(viewerOverflowIsHidden).toBe(true);
-  await expect(page.getByLabel("Frame browser").getByRole("button")).toHaveCount(7);
 
   const frameSeven = page.getByRole("button", {
-    name: "Photo 7 Quality passed",
+    name: "Photo 7 · Shared storage",
   });
   await frameSeven.click();
-  await expect(page.getByRole("heading", { name: "Compare photo 7 · frame-006.jpg" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Photo 7 · frame-006.jpg" })).toBeVisible();
+  await expect(page.getByText("Shared storage · Saves space")).toBeVisible();
 
   const exportDownloadPromise = page.waitForEvent("download");
   await page.getByRole("link", { name: "Save this rebuilt photo" }).click();
@@ -157,9 +179,10 @@ test("native burst completes with explicit per-frame fallback", async ({ page })
   const fallback = result.frames.find((frame: { storage_mode: string }) => frame.storage_mode === "independent_source");
   expect(fallback).toBeTruthy();
   await page.getByRole("button", {
-    name: `Photo ${fallback.index + 1} ${fallback.quality_threshold_pass ? "Quality passed" : "Needs review"}`,
+    name: `Photo ${fallback.index + 1} · Stored whole${fallback.quality_threshold_pass === false ? " · Needs review" : ""}`,
   }).click();
-  await expect(page.getByText(/did not line up closely enough with the others/)).toBeVisible();
+  await expect(page.getByText("Stored whole · Protects quality")).toBeVisible();
+  await expect(page.getByText(/stored independently because sharing the scene was not a safe fit/)).toBeVisible();
   await expect(page.getByText(/inlier ratio/i)).toHaveCount(0);
-  await expect(page.getByText(/needs PhotoFold to export photos/)).toBeVisible();
+  await expect(page.getByText(/Contains everything needed to rebuild and export all photos/)).toBeVisible();
 });
