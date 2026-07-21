@@ -54,7 +54,7 @@ const analysis = {
   frame_dispositions: Array.from({ length: 5 }, (_, index) => ({
     frame_index: index,
     storage_mode: index === 2 ? "shared_reference" : index === 4 ? "independent_source" : "shared_delta",
-    fallback_reason: index === 4 ? "Alignment evidence did not pass the threshold." : null,
+    fallback_reason: index === 4 ? "Alignment fallback: inlier ratio 0.7967 is below 0.8000." : null,
   })),
   reference_frame_index: 2,
   reference_score: 0.91,
@@ -82,7 +82,7 @@ const analysis = {
     median_reprojection_error: index === 4 ? null : 0.5,
     reprojection_error_units: "analysis_pixels",
     valid_overlap: index === 4 ? null : 0.98,
-    fallback_reason: index === 4 ? "Alignment evidence did not pass the threshold." : null,
+    fallback_reason: index === 4 ? "Alignment fallback: inlier ratio 0.7967 is below 0.8000." : null,
   })),
   alignment_measurement: {
     units: "analysis_pixels",
@@ -161,14 +161,14 @@ describe("PhotoFold Gate 3 workflow", () => {
     render(<Home />);
     choose();
 
-    expect(await screen.findByText("5 / 20 frames")).toBeInTheDocument();
+    expect(await screen.findByText("5 / 20 photos")).toBeInTheDocument();
     expect(screen.getByText("510 B")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Remove frame-0.jpg" }));
 
-    expect(screen.getByText("4 / 20 frames")).toBeInTheDocument();
+    expect(screen.getByText("4 / 20 photos")).toBeInTheDocument();
     expect(screen.getByText("410 B")).toBeInTheDocument();
     expect(screen.getByText("1 more photo needed")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Analyze this moment" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Check these photos" })).toBeDisabled();
   });
 
   it("renders structured processor errors", async () => {
@@ -192,11 +192,12 @@ describe("PhotoFold Gate 3 workflow", () => {
     );
     render(<Home />);
     choose();
-    await waitFor(() => expect(screen.getByRole("button", { name: "Analyze this moment" })).toBeEnabled());
-    fireEvent.click(screen.getByRole("button", { name: "Analyze this moment" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Check these photos" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Check these photos" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("DIMENSIONS_INCOMPATIBLE · preprocess");
-    expect(screen.getByRole("alert")).toHaveTextContent("Affected frames: 5");
+    expect(await screen.findByRole("alert")).toHaveTextContent("We could not complete this step");
+    expect(screen.getByRole("alert")).toHaveTextContent("DIMENSIONS_INCOMPATIBLE · preprocess");
+    expect(screen.getByRole("alert")).toHaveTextContent("Photos to check: 5");
   });
 
   it("labels deferred analysis and never calls a no-savings outcome successful", async () => {
@@ -206,24 +207,51 @@ describe("PhotoFold Gate 3 workflow", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<Home />);
     choose();
-    await waitFor(() => expect(screen.getByRole("button", { name: "Analyze this moment" })).toBeEnabled());
-    fireEvent.click(screen.getByRole("button", { name: "Analyze this moment" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Check these photos" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Check these photos" }));
 
-    expect(await screen.findByText("Processor analysis")).toBeInTheDocument();
-    expect(screen.getByText("Ready to fold")).toBeInTheDocument();
-    expect(screen.getByText("4 frames can share scene data; 1 will be stored independently.")).toBeInTheDocument();
-    expect(screen.getAllByText("Fallback").length).toBeGreaterThan(0);
-    expect(screen.getByText(/suitability score/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Fold this moment" }));
+    expect(await screen.findByText("Most of these photos can share space")).toBeInTheDocument();
+    expect(screen.getByText("Ready to create")).toBeInTheDocument();
+    expect(screen.getByText("4 photos can share space; 1 will stay whole.")).toBeInTheDocument();
+    expect(screen.getAllByText("Kept whole").length).toBeGreaterThan(0);
+    expect(screen.getByText(/did not line up closely enough with the others/)).toBeInTheDocument();
+    expect(screen.queryByText(/inlier ratio/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Not included in this preview/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Create PhotoFold collection" }));
 
-    expect(await screen.findByText("Fold complete — no storage reduction")).toBeInTheDocument();
-    expect(screen.getByText("Difference vs uploads")).toBeInTheDocument();
-    expect(screen.queryByText("Saved vs uploads")).not.toBeInTheDocument();
-    expect(screen.queryByText("Moment folded successfully")).not.toBeInTheDocument();
-    expect(screen.getByText("Download PhotoFold archive")).toBeInTheDocument();
-    expect(screen.getByText("Requires PhotoFold to reconstruct the complete set.")).toBeInTheDocument();
+    expect(await screen.findByText("Your collection is ready, but it is not smaller")).toBeInTheDocument();
+    expect(screen.getByText("Size difference")).toBeInTheDocument();
+    expect(screen.queryByText("Space saved")).not.toBeInTheDocument();
+    expect(screen.queryByText("Your smaller photo collection is ready")).not.toBeInTheDocument();
+    expect(screen.getByText("Download collection")).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Workflow progress" })).toBeInTheDocument();
+    expect(screen.queryByText("How PhotoFold works")).not.toBeInTheDocument();
+    expect(screen.getByText("What does SSIM mean?")).not.toBeVisible();
+    fireEvent.click(screen.getByText("Size, quality & collection details"));
+    expect(screen.getByText("What does SSIM mean?")).toBeVisible();
+    expect(screen.getByText(/needs PhotoFold to export photos/)).toBeVisible();
+    expect(screen.getByText(/1.000 is a perfect measured match/)).toBeInTheDocument();
+    expect(screen.getByText(/1× fits the whole photo/)).toBeInTheDocument();
+    const zoom = screen.getByRole("slider", { name: "Zoom" });
+    expect(zoom).toHaveValue("1");
+    fireEvent.change(zoom, { target: { value: "2" } });
+    expect(zoom).toHaveValue("2");
 
-    fireEvent.click(screen.getByRole("button", { name: "Heatmap" }));
+    const viewer = screen.getByTestId("frame-viewer");
+    const canvas = viewer.querySelector<HTMLElement>(".viewer-canvas");
+    if (!canvas) throw new Error("viewer canvas missing");
+    Object.defineProperty(canvas, "clientWidth", { configurable: true, value: 800 });
+    Object.defineProperty(canvas, "clientHeight", { configurable: true, value: 450 });
+    fireEvent.pointerDown(viewer, { pointerId: 1, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(viewer, { pointerId: 1, clientX: 160, clientY: 140 });
+    expect(canvas.style.transform).toContain("translate(60px, 40px) scale(2)");
+    fireEvent.pointerUp(viewer, { pointerId: 1, clientX: 160, clientY: 140 });
+    fireEvent.click(screen.getByRole("button", { name: "Fit" }));
+    expect(zoom).toHaveValue("1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Change heatmap" }));
+    expect(screen.getByText("How to read the change heatmap")).toBeInTheDocument();
+    expect(screen.getByText(/Dark means little change/)).toBeInTheDocument();
     expect(screen.getByRole("img", { name: /difference for frame-2.jpg/i })).toBeInTheDocument();
   });
 
@@ -268,12 +296,42 @@ describe("PhotoFold Gate 3 workflow", () => {
     );
     render(<Home />);
     choose();
-    await waitFor(() => expect(screen.getByRole("button", { name: "Analyze this moment" })).toBeEnabled());
-    fireEvent.click(screen.getByRole("button", { name: "Analyze this moment" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Check these photos" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Check these photos" }));
 
-    expect(await screen.findByText("These photos will use independent storage.")).toBeInTheDocument();
-    expect(screen.getByText("No shared base")).toBeInTheDocument();
-    expect(screen.getAllByText("Fallback")).toHaveLength(5);
-    expect(screen.getByRole("button", { name: "Fold this moment" })).toBeEnabled();
+    expect(await screen.findByText(/These photos are too different to share safely/)).toBeInTheDocument();
+    expect(screen.getByText("None needed")).toBeInTheDocument();
+    expect(screen.getAllByText("Kept whole")).toHaveLength(5);
+    expect(screen.getByRole("button", { name: "Create PhotoFold collection" })).toBeEnabled();
+  });
+
+  it("shows exactly one active workflow step while processing", async () => {
+    let finishAnalysis: ((response: Response) => void) | undefined;
+    let finishFold: ((response: Response) => void) | undefined;
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => { finishAnalysis = resolve; }))
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => { finishFold = resolve; }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<Home />);
+    choose();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Check these photos" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Check these photos" }));
+
+    await screen.findByText("Checking now");
+    expect(document.querySelectorAll(".step-number-active")).toHaveLength(1);
+    expect(document.querySelector(".step-number-active")).toHaveTextContent("2");
+    expect(document.querySelectorAll(".step-number-complete")).toHaveLength(1);
+
+    finishAnalysis?.(jsonResponse({ runId: "00000000-0000-4000-8000-000000000001", analysis }));
+    await screen.findByText("Most of these photos can share space");
+    fireEvent.click(screen.getByRole("button", { name: "Create PhotoFold collection" }));
+
+    await screen.findByText("Creating now");
+    expect(document.querySelectorAll(".step-number-active")).toHaveLength(1);
+    expect(document.querySelector(".step-number-active")).toHaveTextContent("3");
+    expect(document.querySelectorAll(".step-number-complete")).toHaveLength(2);
+
+    finishFold?.(jsonResponse({ runId: "00000000-0000-4000-8000-000000000001", result }));
+    await screen.findByText("Your collection is ready, but it is not smaller");
   });
 });
