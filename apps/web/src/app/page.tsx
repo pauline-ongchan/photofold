@@ -32,6 +32,15 @@ function formatPercent(value: number): string {
   return `${Math.abs(value).toFixed(1)}%`;
 }
 
+function friendlyFallbackReason(reason: string | null | undefined): string {
+  if (!reason) return "This photo did not match the rest closely enough, so it stays whole.";
+  const normalized = reason.toLowerCase();
+  if (normalized.includes("alignment") || normalized.includes("inlier") || normalized.includes("overlap")) {
+    return "This photo did not line up closely enough with the others, so it stays whole to protect quality.";
+  }
+  return "This photo was not a close enough match, so it stays whole to protect quality.";
+}
+
 function isErrorEnvelope(value: unknown): value is ErrorEnvelope {
   return Boolean(
     value &&
@@ -435,7 +444,7 @@ function AnalysisStep({ analysis, busy, onFold }: { analysis: PrototypeAnalysis;
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-[#607066]">
-                  {fallback ? `Why: ${disposition.fallback_reason}` : "Stores only what changed."} · {source.width}×{source.height}
+                  {fallback ? friendlyFallbackReason(disposition.fallback_reason) : "Stores only what changed."} · {source.width}×{source.height}
                 </p>
               </div>
             );
@@ -453,15 +462,6 @@ function AnalysisStep({ analysis, busy, onFold }: { analysis: PrototypeAnalysis;
           <DataTerm label="Positioning tolerance" value={`${analysis.alignment_measurement.max_median_reprojection_error.toFixed(2)} pixels`} description="The maximum allowed mismatch on the smaller checking image." />
           <DataTerm label="Checking image size" value={`Up to ${analysis.alignment_measurement.analysis_max_dimension}px`} description="Photos are temporarily scaled down to make this first check faster." />
         </dl>
-        <div className="mt-5 border-t border-[#17211b]/10 pt-4">
-          <p className="text-sm font-semibold">Detailed analysis notes</p>
-          <ul className="mt-2 space-y-1 text-sm leading-6 text-[#607066]">
-            {analysis.reasons.map((reason) => <li key={reason}>— {reason}</li>)}
-          </ul>
-          {analysis.deferred_fields.length > 0 && (
-            <p className="mt-3 text-xs leading-5 text-[#738077]">Not included in this preview: {analysis.deferred_fields.map((field) => field.replaceAll("_", " ")).join(", ")}.</p>
-          )}
-        </div>
       </details>
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-[#17211b]/10 pt-5">
@@ -652,7 +652,7 @@ function ResultsStep(props: ResultsStepProps) {
               <p className="mt-1 text-sm text-[#607066]">
                 Visual match <strong className="text-[#35483b]">{frame.ssim?.toFixed(4)}</strong> · {frame.storage_mode === "independent_source" ? "Kept whole" : "Shares space"}{frame.storage_mode !== "independent_source" ? ` · ${frame.patch_count} changed area${frame.patch_count === 1 ? "" : "s"} preserved` : ""}
               </p>
-              {frame.fallback_reason && <p className="mt-2 text-sm text-[#8a5a20]">Kept whole because: {frame.fallback_reason}</p>}
+              {frame.fallback_reason && <p className="mt-2 text-sm text-[#8a5a20]">{friendlyFallbackReason(frame.fallback_reason)}</p>}
             </div>
             <div className="flex flex-wrap gap-2">
               <a className="button-primary" href={`${base}/export`}>Save this rebuilt photo</a>

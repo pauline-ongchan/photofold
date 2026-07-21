@@ -54,7 +54,7 @@ const analysis = {
   frame_dispositions: Array.from({ length: 5 }, (_, index) => ({
     frame_index: index,
     storage_mode: index === 2 ? "shared_reference" : index === 4 ? "independent_source" : "shared_delta",
-    fallback_reason: index === 4 ? "Alignment evidence did not pass the threshold." : null,
+    fallback_reason: index === 4 ? "Alignment fallback: inlier ratio 0.7967 is below 0.8000." : null,
   })),
   reference_frame_index: 2,
   reference_score: 0.91,
@@ -82,7 +82,7 @@ const analysis = {
     median_reprojection_error: index === 4 ? null : 0.5,
     reprojection_error_units: "analysis_pixels",
     valid_overlap: index === 4 ? null : 0.98,
-    fallback_reason: index === 4 ? "Alignment evidence did not pass the threshold." : null,
+    fallback_reason: index === 4 ? "Alignment fallback: inlier ratio 0.7967 is below 0.8000." : null,
   })),
   alignment_measurement: {
     units: "analysis_pixels",
@@ -214,7 +214,9 @@ describe("PhotoFold Gate 3 workflow", () => {
     expect(screen.getByText("Ready to create")).toBeInTheDocument();
     expect(screen.getByText("4 photos can share space; 1 will stay whole.")).toBeInTheDocument();
     expect(screen.getAllByText("Kept whole").length).toBeGreaterThan(0);
-    expect(screen.getByText(/suitability score/)).toBeInTheDocument();
+    expect(screen.getByText(/did not line up closely enough with the others/)).toBeInTheDocument();
+    expect(screen.queryByText(/inlier ratio/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Not included in this preview/i)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Create PhotoFold collection" }));
 
     expect(await screen.findByText("Your collection is ready, but it is not smaller")).toBeInTheDocument();

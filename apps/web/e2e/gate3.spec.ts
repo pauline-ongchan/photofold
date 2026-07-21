@@ -33,7 +33,7 @@ test("curated upload → analyze → fold → inspect → export → bundle", as
   await expect(analysisRegion.getByText("Ready to create", { exact: true })).toBeVisible();
   await expect(analysisRegion.getByText("All 7 photos can share space.", { exact: true })).toBeVisible();
   await analysisRegion.getByText("See how PhotoFold made this decision").click();
-  await expect(analysisRegion.getByText(/estimated shared region percent/)).toBeVisible();
+  await expect(analysisRegion.getByText("Matching-detail confidence", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Create PhotoFold collection" }).click();
   await expect(page.getByRole("heading", { name: "Your smaller photo collection is ready" })).toBeVisible({
@@ -156,6 +156,7 @@ test("native burst completes with explicit per-frame fallback", async ({ page })
   await page.getByRole("button", {
     name: `Photo ${fallback.index + 1} Kept whole · match ${fallback.ssim.toFixed(4)}`,
   }).click();
-  await expect(page.getByText(/Kept whole because: Alignment fallback/)).toBeVisible();
+  await expect(page.getByText(/did not line up closely enough with the others/)).toBeVisible();
+  await expect(page.getByText(/inlier ratio/i)).toHaveCount(0);
   await expect(page.getByText(/needs PhotoFold to export photos/)).toBeVisible();
 });
