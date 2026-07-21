@@ -467,7 +467,7 @@ function AnalysisStep({ analysis, busy, onFold }: { analysis: PrototypeAnalysis;
       <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-[#17211b]/10 pt-5">
         <p className="max-w-xl text-sm leading-6 text-[#607066]">Next, PhotoFold rebuilds every photo and checks size and quality.</p>
         <button className="button-primary" disabled={analysis.status !== "analyzed_foldable" || busy} type="button" onClick={onFold}>
-          {busy ? "Creating and checking your collection…" : "Create PhotoFold collection"}
+          {busy ? "Just folding…" : "Create PhotoFold collection"}
         </button>
       </div>
     </section>
