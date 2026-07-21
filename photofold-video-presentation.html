@@ -181,55 +181,54 @@
     }
 
     .scene-problem .copy { position: relative; z-index: 3; }
-    .scene-problem h1 { max-width: 740px; font-size: 101px; }
+    .scene-problem h1 { max-width: 760px; font-size: 94px; }
 
-    .burst-gallery {
+    .camera-roll {
       position: relative;
-      height: 740px;
-      perspective: 1400px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      height: 720px;
+      padding: 24px;
     }
 
-    .burst-card {
-      position: absolute;
-      width: 330px;
-      height: 495px;
+    .camera-roll-bar { display: flex; align-items: center; justify-content: space-between; padding: 0 4px 20px; }
+    .camera-roll-bar strong { font-size: 25px; letter-spacing: -.03em; }
+    .camera-roll-bar span { color: #1677ff; font-size: 15px; font-weight: 750; }
+    .camera-roll-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 11px; min-height: 0; }
+    .roll-photo {
       overflow: hidden;
-      border: 11px solid rgba(255,255,255,.94);
-      border-radius: 28px;
+      border-radius: 13px;
       background: #dfe5dc;
-      box-shadow: 0 30px 70px rgba(23,33,27,.2);
       opacity: 0;
-      transform: translate3d(0, 130px, 0) rotate(var(--r));
+      transform: translateY(32px);
     }
-
-    .burst-card img { width: 100%; height: 100%; object-fit: cover; }
-    .burst-card:nth-child(1) { left: 18px; top: 22px; --r: -8deg; }
-    .burst-card:nth-child(2) { left: 252px; top: 12px; --r: 3deg; }
-    .burst-card:nth-child(3) { left: 518px; top: 54px; --r: 8deg; }
-    .burst-card:nth-child(4) { left: 24px; top: 250px; --r: -5deg; }
-    .burst-card:nth-child(5) { left: 548px; top: 248px; --r: 5deg; }
-    .burst-card:nth-child(6) { left: 282px; top: 230px; --r: -3deg; }
-    .burst-card:nth-child(7) { left: 305px; top: 106px; --r: -1deg; z-index: 2; }
-
-    .active .burst-card { animation: card-arrive 820ms var(--ease) forwards; animation-delay: calc(var(--i) * 100ms + 160ms); }
-    .active .burst-card:nth-child(7) { animation-name: card-arrive-hero; }
-
-    .repeat-window {
-      position: absolute;
-      z-index: 5;
-      left: 397px;
-      top: 215px;
-      width: 142px;
-      height: 198px;
-      border: 4px solid rgba(255,255,255,.92);
-      border-radius: 20px;
-      box-shadow: 0 0 0 999px rgba(23,33,27,.08), 0 22px 60px rgba(23,33,27,.25);
-      opacity: 0;
-    }
-
-    .active .repeat-window { animation: repeat-pulse 2.5s var(--ease) 1.4s infinite; }
+    .roll-photo img { width: 100%; height: 100%; object-fit: cover; }
+    .active .roll-photo { animation: thumb-in 560ms var(--ease) forwards; animation-delay: calc(var(--i) * 90ms + 180ms); }
+    .roll-note { display: grid; place-items: center; border-radius: 13px; background: var(--moss-light); color: var(--ink-soft); text-align: center; }
+    .roll-note strong { display: block; font-size: 29px; }
+    .roll-note span { display: block; margin-top: 5px; font-size: 13px; font-weight: 700; }
+    .camera-roll-summary { display: flex; align-items: center; justify-content: space-between; padding: 20px 4px 0; color: var(--muted); font-size: 15px; font-weight: 700; }
+    .camera-roll-summary strong { color: var(--ink); font-size: 18px; }
 
     /* Scene 2 */
+    .scene-storage { grid-template-columns: .82fr 1.18fr; align-items: center; gap: 70px; }
+    .scene-storage h2 { max-width: 760px; font-size: 92px; }
+    .file-stack { padding: 30px; }
+    .file-stack-header { display: flex; align-items: end; justify-content: space-between; margin-bottom: 18px; }
+    .file-stack-header strong { font-size: 31px; letter-spacing: -.03em; }
+    .file-stack-header span { color: var(--muted); font-size: 14px; font-weight: 700; }
+    .file-rows { display: grid; gap: 8px; }
+    .file-row { display: grid; grid-template-columns: 56px 96px 1fr 116px; align-items: center; gap: 15px; border-radius: 15px; padding: 9px 13px; background: var(--paper); opacity: 0; transform: translateX(34px); }
+    .file-row img { width: 56px; height: 64px; border-radius: 9px; object-fit: cover; }
+    .file-row > span { font-size: 16px; font-weight: 800; }
+    .file-row .full-file { display: block; height: 9px; overflow: hidden; border-radius: 999px; background: rgba(73,97,81,.13); }
+    .file-row .full-file::after { content: ""; display: block; width: 96%; height: 100%; border-radius: inherit; background: #7f8e84; }
+    .file-row em { color: var(--muted); font-size: 13px; font-style: normal; font-weight: 750; text-align: right; }
+    .active .file-row { animation: result-in 520ms var(--ease) forwards; animation-delay: calc(var(--i) * 80ms + 220ms); }
+    .file-stack-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 19px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 15px; }
+    .file-stack-footer strong { color: var(--ink); font-size: 18px; }
+
+    /* Scene 3 */
     .scene-idea { align-items: center; }
     .scene-idea .layout { display: grid; grid-template-columns: .9fr 1.1fr; align-items: center; gap: 80px; }
     .scene-idea h2 { max-width: 770px; font-size: 102px; }
@@ -289,7 +288,7 @@
 
     /* The two live-product scenes are intentionally presented outside this deck. */
 
-    /* Scene 5 */
+    /* Scene 4 */
     .scene-evidence { grid-template-rows: auto 1fr auto; gap: 36px; }
     .scene-evidence .heading-row { display: flex; align-items: end; justify-content: space-between; }
     .scene-evidence h2 { margin-bottom: 0; font-size: 78px; }
@@ -317,7 +316,7 @@
     .dataset-dot span { position: absolute; left: 13px; right: 13px; bottom: 12px; border-radius: 11px; padding: 8px 10px; background: rgba(23,33,27,.8); color: white; font-size: 12px; font-weight: 800; text-align: center; }
     .qualifier { display: flex; align-items: center; gap: 11px; color: var(--muted); font-size: 18px; }
 
-    /* Scene 6 */
+    /* Scene 5 */
     .scene-codex { align-items: center; }
     .codex-layout { display: grid; grid-template-columns: .93fr 1.07fr; align-items: center; gap: 76px; }
     .scene-codex h2 { font-size: 86px; }
@@ -338,7 +337,7 @@
     .support-labels { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 38px; }
     .support-labels span { border: 1px solid var(--line); border-radius: 999px; padding: 11px 15px; color: var(--muted); font-size: 15px; font-weight: 800; }
 
-    /* Scene 7 */
+    /* Scene 6 */
     .scene-local { align-items: center; }
     .scene-local h2 { text-align: center; font-size: 86px; }
     .local-diagram { display: grid; grid-template-columns: 1fr 160px 1.14fr 160px 1fr; align-items: center; max-width: 1500px; margin: 80px auto 0; }
@@ -361,7 +360,7 @@
     .local-value { padding: 16px 23px; border-radius: 999px; background: white; box-shadow: 0 10px 30px rgba(23,33,27,.07); font-size: 21px; font-weight: 800; opacity: 0; transform: translateY(24px); }
     .active .local-value { animation: thumb-in 500ms var(--ease) forwards; animation-delay: calc(var(--i) * 170ms + 900ms); }
 
-    /* Product vision */
+    /* Scene 7 — product vision */
     .scene-vision { grid-template-rows: auto 1fr; gap: 28px; padding-top: 74px; }
     .vision-label { display: inline-flex; align-items: center; gap: 10px; width: fit-content; border-radius: 999px; padding: 12px 18px; background: var(--warm-bg); color: #76570d; font-size: 15px; font-weight: 850; letter-spacing: .11em; text-transform: uppercase; }
     .gallery-prototype { position: relative; display: grid; grid-template-rows: 54px 1fr; min-height: 0; overflow: hidden; background: #f7f7f8; }
@@ -444,7 +443,7 @@
 
     .scene-counter { min-width: 104px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 16px; font-weight: 800; letter-spacing: .14em; }
     .progress { height: 3px; overflow: hidden; border-radius: 99px; background: rgba(23,33,27,.13); }
-    .progress span { display: block; width: 12.5%; height: 100%; border-radius: inherit; background: var(--moss); transition: width 500ms var(--ease); }
+    .progress span { display: block; width: 14.2857%; height: 100%; border-radius: inherit; background: var(--moss); transition: width 500ms var(--ease); }
     .scene-title { min-width: 250px; text-align: right; font-size: 15px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
 
     .controls {
@@ -555,44 +554,70 @@
   <main class="app" id="app">
     <div class="viewport" id="viewport" aria-live="polite">
       <div class="slides">
-        <section class="slide scene-problem active" data-title="The problem" data-time="0:00–0:17" data-scene-label="Scene 01 · The problem">
+        <section class="slide scene-problem active" data-title="One moment, many photos" data-time="0:00–0:17" data-scene-label="Scene 01 · One moment">
           <div class="copy">
-            <p class="eyebrow">Your photo library</p>
-            <h1>Stores the same scene again and again.</h1>
-            <p class="lead">Bursts preserve the moment—and repeat most of the pixels.</p>
+            <p class="eyebrow">A camera in your pocket</p>
+            <h1>It’s easy to take seven photos of one moment.</h1>
+            <p class="lead">Then I spend hours deciding which memory to delete.</p>
           </div>
-          <div class="burst-gallery" aria-label="Seven nearly identical burst photos">
-            <figure class="burst-card" style="--i:0"><img data-photo="frame-000" alt="Burst photo 1"></figure>
-            <figure class="burst-card" style="--i:1"><img data-photo="frame-001" alt="Burst photo 2"></figure>
-            <figure class="burst-card" style="--i:2"><img data-photo="frame-002" alt="Burst photo 3"></figure>
-            <figure class="burst-card" style="--i:3"><img data-photo="frame-003" alt="Burst photo 4"></figure>
-            <figure class="burst-card" style="--i:4"><img data-photo="frame-004" alt="Burst photo 5"></figure>
-            <figure class="burst-card" style="--i:5"><img data-photo="frame-005" alt="Burst photo 6"></figure>
-            <figure class="burst-card" style="--i:6"><img data-photo="frame-006" alt="Burst photo 7"></figure>
-            <div class="repeat-window" aria-hidden="true"></div>
+          <div class="camera-roll panel" aria-label="A Photos-style camera roll with seven pose photos">
+            <div class="camera-roll-bar"><strong>Today</strong><span>7 Photos</span></div>
+            <div class="camera-roll-grid">
+              <figure class="roll-photo" style="--i:0"><img data-photo="frame-000" alt="Pose photo 1"></figure>
+              <figure class="roll-photo" style="--i:1"><img data-photo="frame-001" alt="Pose photo 2"></figure>
+              <figure class="roll-photo" style="--i:2"><img data-photo="frame-002" alt="Pose photo 3"></figure>
+              <figure class="roll-photo" style="--i:3"><img data-photo="frame-003" alt="Pose photo 4"></figure>
+              <figure class="roll-photo" style="--i:4"><img data-photo="frame-004" alt="Pose photo 5"></figure>
+              <figure class="roll-photo" style="--i:5"><img data-photo="frame-005" alt="Pose photo 6"></figure>
+              <figure class="roll-photo" style="--i:6"><img data-photo="frame-006" alt="Pose photo 7"></figure>
+              <div class="roll-note"><div><strong>1 moment</strong><span>7 versions worth keeping</span></div></div>
+            </div>
+            <div class="camera-roll-summary"><strong>Camera roll</strong><span>Which one would you delete?</span></div>
           </div>
-          <script type="application/json" class="notes">{"narration":"Our photo libraries are filled with bursts where most of every image is repeated. Existing tools either compress each photo independently or ask us to delete the extras. PhotoFold offers a third option: keep every shot, but store the shared scene only once."}</script>
+          <script type="application/json" class="notes">{"narration":"Having a camera in my pocket makes it incredibly easy to take lots of photos at once. I do this all the time—I take several shots to get one moment right, then spend far too long deciding whether I should delete this photo or that one. The problem is that I usually want to keep them all."}</script>
         </section>
 
-        <section class="slide scene-idea" data-title="The product idea" data-time="0:17–0:32" data-scene-label="Scene 02 · The product idea">
+        <section class="slide scene-storage" data-title="The storage problem" data-time="0:17–0:31" data-scene-label="Scene 02 · The storage problem">
+          <div class="copy">
+            <p class="eyebrow">What I noticed</p>
+            <h2>Barely different. Stored in full.</h2>
+            <p class="lead">Most of each photo repeats the same visual information.</p>
+          </div>
+          <div class="file-stack panel" aria-label="Seven complete photo files with similar storage cost">
+            <div class="file-stack-header"><strong>Seven photos</strong><span>One moment</span></div>
+            <div class="file-rows">
+              <div class="file-row" style="--i:0"><img data-photo="frame-000" alt="Shot 1"><span>Shot 01</span><i class="full-file"></i><em>≈ same size</em></div>
+              <div class="file-row" style="--i:1"><img data-photo="frame-001" alt="Shot 2"><span>Shot 02</span><i class="full-file"></i><em>≈ same size</em></div>
+              <div class="file-row" style="--i:2"><img data-photo="frame-002" alt="Shot 3"><span>Shot 03</span><i class="full-file"></i><em>≈ same size</em></div>
+              <div class="file-row" style="--i:3"><img data-photo="frame-003" alt="Shot 4"><span>Shot 04</span><i class="full-file"></i><em>≈ same size</em></div>
+              <div class="file-row" style="--i:4"><img data-photo="frame-004" alt="Shot 5"><span>Shot 05</span><i class="full-file"></i><em>≈ same size</em></div>
+              <div class="file-row" style="--i:5"><img data-photo="frame-005" alt="Shot 6"><span>Shot 06</span><i class="full-file"></i><em>≈ same size</em></div>
+              <div class="file-row" style="--i:6"><img data-photo="frame-006" alt="Shot 7"><span>Shot 07</span><i class="full-file"></i><em>≈ same size</em></div>
+            </div>
+            <div class="file-stack-footer"><strong>7 complete files</strong><span>Minimal change between shots</span></div>
+          </div>
+          <script type="application/json" class="notes">{"narration":"When I looked closely, most of these photos changed only a little—a smile, a head turn, a hand moving. But each one was still saved as another complete photo, using roughly the same amount of storage. And because storage never feels like enough, that duplication started to feel like the real problem."}</script>
+        </section>
+
+        <section class="slide scene-idea" data-title="The PhotoFold idea" data-time="0:31–0:46" data-scene-label="Scene 03 · The PhotoFold idea">
           <div class="layout">
             <div>
-              <p class="eyebrow">Meet PhotoFold</p>
-              <h2>Keep every shot.<span>Store the scene once.</span></h2>
-              <p class="lead">And store only what changes.</p>
+              <p class="eyebrow">The question that became PhotoFold</p>
+              <h2>Keep every shot.<span>Store only what changes.</span></h2>
+              <p class="lead">A compact, reversible collection—without deleting the moment.</p>
             </div>
             <div class="fold-visual" aria-label="A reference photo and three change layers">
-              <div class="fold-reference"><img data-photo="frame-003" alt="Shared reference scene"></div>
-              <span class="reference-label">Shared scene</span>
-              <div class="change-layer one" style="--i:1"><span>Change layer 01</span></div>
-              <div class="change-layer two" style="--i:2"><span>Change layer 02</span></div>
-              <div class="change-layer three" style="--i:3"><span>Change layer 03</span></div>
+              <div class="fold-reference"><img data-photo="frame-003" alt="Reference frame"></div>
+              <span class="reference-label">Reference frame</span>
+              <div class="change-layer one" style="--i:1"><span>Frame change 01</span></div>
+              <div class="change-layer two" style="--i:2"><span>Frame change 02</span></div>
+              <div class="change-layer three" style="--i:3"><span>Frame change 03</span></div>
             </div>
           </div>
-          <script type="application/json" class="notes">{"narration":"PhotoFold turns a related set of photos into one compact, reversible collection. It preserves every frame while avoiding the unnecessary duplication hidden across similar images."}</script>
+          <script type="application/json" class="notes">{"narration":"That made me wonder: what if I did not have to choose? What if I could keep every shot, but avoid storing all of the repeated visual information every time? PhotoFold turns related photos into one compact, reversible collection by keeping a reference frame and storing what changes from shot to shot."}</script>
         </section>
 
-        <section class="slide scene-evidence" data-title="Measured evidence" data-time="1:19–1:44" data-scene-label="Scene 03 · Measured evidence">
+        <section class="slide scene-evidence" data-title="Measured evidence" data-time="1:19–1:44" data-scene-label="Scene 04 · Measured evidence">
           <div class="heading-row">
             <div><p class="eyebrow">Measured, not estimated</p><h2>The idea holds up.</h2></div>
             <span class="pill"><span class="dot"></span>Every accepted frame verified</span>
@@ -622,7 +647,7 @@
           <script type="application/json" class="notes">{"narration":"For this reference burst, 4.4 megabytes of source photos became a 678-kilobyte PhotoFold collection. It was also smaller than encoding every image independently as WebP at matched or better measured quality. Across three real bursts and 42 photos, PhotoFold reduced 98.3 megabytes to 26.3 megabytes, while reconstructing every accepted frame. Performance varied with motion and lighting, which became an important part of our development."}</script>
         </section>
 
-        <section class="slide scene-codex" data-title="Codex and GPT-5.6" data-time="1:44–2:19" data-scene-label="Scene 04 · Codex + GPT-5.6">
+        <section class="slide scene-codex" data-title="Codex and GPT-5.6" data-time="1:44–2:19" data-scene-label="Scene 05 · Codex + GPT-5.6">
           <div class="codex-layout">
             <div>
               <p class="eyebrow">Engineering loop</p>
@@ -649,7 +674,7 @@
           <script type="application/json" class="notes">{"narration":"We used GPT-5.6 in Codex to test whether PhotoFold’s central idea actually held up—not simply to generate code. In our Phase 1B task, Codex helped design and implement a quality-matched WebP benchmark across three real photo bursts. It verified every reconstructed frame, accounted for every archive byte, generated visual reports, and surfaced where motion and changing light weakened the approach. Those findings directly changed the product, leading us to add safer fallback behavior and improve support for photos with different resolutions."}</script>
         </section>
 
-        <section class="slide scene-local" data-title="Local by design" data-time="2:19–2:34" data-scene-label="Scene 05 · Local runtime">
+        <section class="slide scene-local" data-title="Local by design" data-time="2:19–2:34" data-scene-label="Scene 06 · Local runtime">
           <div>
             <p class="eyebrow" style="text-align:center">Predictable · Private · Verifiable</p>
             <h2>The photos never leave your device.</h2>
@@ -665,7 +690,7 @@
           <script type="application/json" class="notes">{"narration":"The final processor is deterministic and local by design. GPT-5.6 shaped the engineering and evaluation, while reconstruction itself never depends on a model response. That makes the result predictable, private, and independently verifiable."}</script>
         </section>
 
-        <section class="slide scene-vision" data-title="Product vision" data-time="2:34–2:58" data-scene-label="Scene 06 · Product vision">
+        <section class="slide scene-vision" data-title="Product vision" data-time="2:34–2:58" data-scene-label="Scene 07 · Product vision">
           <span class="vision-label"><span class="dot"></span>Product vision — fictional Photos-style prototype</span>
           <div class="panel gallery-prototype" id="galleryPrototype">
             <header class="window-bar">
@@ -730,26 +755,26 @@
             </div>
             <div class="optimize-result" role="status"><strong>Photo sets folded</strong><span>Every photo remains available</span></div>
             <div class="final-lockup" aria-hidden="true">
-              <div><div class="brand">PhotoFold</div><p>Keep every shot. Store the scene once—and only what changes.</p></div>
+              <div><div class="brand">PhotoFold</div><p>Keep every shot. Store only what changes.</p></div>
             </div>
           </div>
-          <script type="application/json" class="notes">{"narration":"Today, PhotoFold is a local prototype. Long term, we imagine this technology built directly into photo libraries such as Apple Photos and Google Photos. When someone enables optimized storage, the gallery could identify related bursts and store their shared visual information only once. Every photo would remain available, while PhotoFold quietly reduces duplication underneath. Keep every shot. Store the scene once—and only what changes."}</script>
+          <script type="application/json" class="notes">{"narration":"Today, PhotoFold is a local prototype. Long term, we imagine this technology built directly into photo libraries such as Apple Photos and Google Photos. When someone enables optimized storage, the gallery could identify related bursts and preserve repeated visual information efficiently while storing the changes between shots. Every photo would remain available, while PhotoFold quietly reduces duplication underneath. Keep every shot. Store only what changes."}</script>
         </section>
       </div>
 
       <footer class="scene-chrome" aria-hidden="true">
-        <span class="scene-counter" id="sceneCounter">01 / 06</span>
+        <span class="scene-counter" id="sceneCounter">01 / 07</span>
         <span class="progress"><span id="progressBar"></span></span>
-        <span class="scene-title" id="sceneTitle">The problem</span>
+        <span class="scene-title" id="sceneTitle">One moment, many photos</span>
       </footer>
     </div>
 
     <aside class="presenter-panel" id="presenterPanel" aria-hidden="true">
       <p class="eyebrow">Presenter notes</p>
-      <h3 id="notesTitle">The problem</h3>
+      <h3 id="notesTitle">One moment, many photos</h3>
       <div class="presenter-time" id="notesTime">0:00–0:17</div>
       <p class="presenter-copy" id="notesCopy"></p>
-      <div class="shortcuts">← / → navigate · R restart motion · N notes · M recording mode · F fullscreen · 1–6 jump to scene</div>
+      <div class="shortcuts">← / → navigate · R restart motion · N notes · M recording mode · F fullscreen · 1–7 jump to scene</div>
     </aside>
 
     <nav class="controls" aria-label="Presentation controls">
@@ -877,7 +902,7 @@
         else if (event.key.toLowerCase() === 'n') { event.preventDefault(); toggleNotes(); }
         else if (event.key.toLowerCase() === 'm') { event.preventDefault(); toggleRecording(); }
         else if (event.key.toLowerCase() === 'f') { event.preventDefault(); toggleFullscreen(); }
-        else if (/^[1-6]$/.test(event.key)) { event.preventDefault(); showScene(Number(event.key) - 1); }
+        else if (/^[1-7]$/.test(event.key)) { event.preventDefault(); showScene(Number(event.key) - 1); }
       });
 
       scaleViewport();
