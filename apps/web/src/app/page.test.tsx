@@ -224,10 +224,10 @@ describe("PhotoFold Gate 3 workflow", () => {
     expect(screen.queryByText("Your smaller photo collection is ready")).not.toBeInTheDocument();
     expect(screen.getByText("Download collection")).toBeInTheDocument();
     expect(screen.getByText(/Contains everything needed to rebuild and export all photos/)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Collection result" })).toBeInTheDocument();
+    const storageResult = screen.getByRole("region", { name: "Storage result" });
+    expect(storageResult).toBeInTheDocument();
     expect(screen.getByText("5 photos preserved")).toBeInTheDocument();
-    expect(screen.getByText("4 using shared storage")).toBeInTheDocument();
-    expect(screen.getByText("1 stored whole to protect quality")).toBeInTheDocument();
+    expect(screen.getByText("4 using shared storage · 1 stored whole")).toBeInTheDocument();
     expect(screen.getByText("500 B larger than the uploaded files")).toBeInTheDocument();
     expect(screen.queryByText("Quality passed")).not.toBeInTheDocument();
 
@@ -235,7 +235,7 @@ describe("PhotoFold Gate 3 workflow", () => {
     expect(photoSelector).toContainElement(screen.getByRole("button", { name: "Photo 1 · Shared storage · 90.0% match" }));
     const storedWholeButton = screen.getByRole("button", { name: "Photo 5 · Stored whole · 86.0% match" });
     expect(photoSelector).toContainElement(storedWholeButton);
-    expect(screen.getByText("Visual match: 88.0%")).toBeInTheDocument();
+    expect(document.querySelector(".selected-photo-summary")).not.toBeInTheDocument();
 
     const advancedDetails = screen.getByText("Advanced details").closest("details");
     expect(advancedDetails).not.toHaveAttribute("open");
@@ -270,10 +270,8 @@ describe("PhotoFold Gate 3 workflow", () => {
     expect(screen.getByRole("img", { name: /difference for frame-2.jpg/i })).toBeInTheDocument();
 
     fireEvent.click(storedWholeButton);
-    expect(screen.getByRole("heading", { name: "Photo 5 · frame-4.jpg" })).toBeInTheDocument();
-    expect(screen.getByText("Stored whole · Protects quality")).toBeInTheDocument();
-    expect(screen.getByText(/stored independently because sharing the scene was not a safe fit/)).toBeInTheDocument();
-    expect(screen.getByText("Visual match: 86.0%")).toBeInTheDocument();
+    expect(storedWholeButton).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText(/Stored whole · SSIM 0.8600/)).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: "Viewer mode" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Original" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Rebuilt photo" })).not.toBeInTheDocument();

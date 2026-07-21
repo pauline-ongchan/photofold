@@ -64,10 +64,10 @@ test("curated upload → analyze → fold → inspect → export → bundle", as
   expect(result.reconstructed_frame_count).toBe(7);
   expect(result.storage.package_total_bytes).toBeGreaterThan(0);
   expect(result.storage.package_total_bytes).toBeLessThan(result.storage.original_total_bytes);
-  await expect(page.getByRole("heading", { name: "Collection result" })).toBeVisible();
+  const storageResult = page.getByRole("region", { name: "Storage result" });
+  await expect(storageResult).toBeVisible();
   await expect(page.getByText("7 photos preserved")).toBeVisible();
-  await expect(page.getByText(`${result.shared_frame_count} using shared storage`)).toBeVisible();
-  await expect(page.getByText(`${result.fallback_frame_count} stored whole to protect quality`)).toBeVisible();
+  await expect(page.getByText(`${result.shared_frame_count} using shared storage · ${result.fallback_frame_count} stored whole`)).toBeVisible();
   await expect(page.getByText(`${formatBytesForTest(result.storage.bytes_saved)} saved · ${result.storage.percent_saved.toFixed(1)}% less storage`)).toBeVisible();
   await expect(page.getByText(result.quality.mean_ssim.toFixed(4), { exact: true })).toBeVisible();
   await expect(page.getByText(result.quality.minimum_ssim.toFixed(4), { exact: true })).toBeVisible();
@@ -75,9 +75,11 @@ test("curated upload → analyze → fold → inspect → export → bundle", as
   const photoSelector = page.getByLabel("Photo selector");
   const viewer = page.getByTestId("frame-viewer");
   await expect(photoSelector.getByRole("button")).toHaveCount(7);
+  const storageResultBox = await storageResult.boundingBox();
   const selectorBox = await photoSelector.boundingBox();
   const initialViewerBox = await viewer.boundingBox();
-  if (!selectorBox || !initialViewerBox) throw new Error("Comparison layout bounds are unavailable");
+  if (!storageResultBox || !selectorBox || !initialViewerBox) throw new Error("Comparison layout bounds are unavailable");
+  expect(storageResultBox.y).toBeLessThan(selectorBox.y);
   expect(selectorBox.y).toBeLessThan(initialViewerBox.y);
   const zoom = page.getByLabel("Zoom");
   const viewerCanvas = viewer.locator(".viewer-canvas");
@@ -132,9 +134,8 @@ test("curated upload → analyze → fold → inspect → export → bundle", as
     name: `Photo 7 · Shared storage · ${formatVisualMatchForTest(result.frames[6].ssim)} match`,
   });
   await frameSeven.click();
-  await expect(page.getByRole("heading", { name: "Photo 7 · frame-006.jpg" })).toBeVisible();
-  await expect(page.getByText("Shared storage · Saves space")).toBeVisible();
-  await expect(page.getByText(`Visual match: ${formatVisualMatchForTest(result.frames[6].ssim)}`)).toBeVisible();
+  await expect(frameSeven).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("img", { name: "difference for frame-006.jpg" })).toBeVisible();
 
   const exportDownloadPromise = page.waitForEvent("download");
   await page.getByRole("link", { name: "Save this rebuilt photo" }).click();
@@ -189,9 +190,6 @@ test("native burst completes with explicit per-frame fallback", async ({ page })
   await page.getByRole("button", {
     name: `Photo ${fallback.index + 1} · Stored whole · ${formatVisualMatchForTest(fallback.ssim)} match${fallback.quality_threshold_pass === false ? " · Needs review" : ""}`,
   }).click();
-  await expect(page.getByText("Stored whole · Protects quality")).toBeVisible();
-  await expect(page.getByText(/stored independently because sharing the scene was not a safe fit/)).toBeVisible();
-  await expect(page.getByText(`Visual match: ${formatVisualMatchForTest(fallback.ssim)}`)).toBeVisible();
   await expect(page.getByRole("group", { name: "Viewer mode" })).toHaveCount(0);
   await expect(page.getByRole("img", { name: `Stored photo ${fallback.original_filename}` })).toBeVisible();
   await expect(page.getByRole("link", { name: "Save this photo" })).toBeVisible();

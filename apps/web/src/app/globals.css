@@ -85,8 +85,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .data-chip { border: 1px solid rgb(23 33 27 / 10%); border-radius: 999px; padding: 0.45rem 0.65rem; background: rgb(255 255 255 / 55%); }
 
 .explanation-card,
-.viewer-guide,
-.selected-photo-summary {
+.viewer-guide {
   border: 1px solid rgb(23 33 27 / 10%);
   border-radius: 1rem;
   background: #f7f5ef;
@@ -133,6 +132,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 
 .collection-result-grid { display: grid; gap: 1.25rem; }
 .collection-size-result { border-radius: 1rem; background: #f3f0e8; padding: 1.25rem; }
+.storage-result-hero { border: 1px solid rgb(33 95 54 / 15%); border-radius: 1.25rem; background: #eef4eb; padding: 1.25rem; }
 
 .step-number { display: grid; height: 1.75rem; width: 1.75rem; flex: 0 0 auto; place-items: center; border: 1px solid rgb(255 255 255 / 24%); border-radius: 999px; color: #afbbb2; font-size: 0.75rem; font-weight: 800; }
 .step-number-active { border-color: #d9eadc; background: #d9eadc; color: #17211b; }

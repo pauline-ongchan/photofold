@@ -41,16 +41,8 @@ function formatVisualMatch(value: number | null | undefined): string {
 
 function storageCopy(mode: FrameStorageMode) {
   return mode === "independent_source"
-    ? {
-        cardLabel: "Stored whole",
-        headline: "Stored whole · Protects quality",
-        description: "This photo was stored independently because sharing the scene was not a safe fit.",
-      }
-    : {
-        cardLabel: "Shared storage",
-        headline: "Shared storage · Saves space",
-        description: "This photo reuses the collection’s shared scene and stores only its unique details.",
-      };
+    ? { cardLabel: "Stored whole" }
+    : { cardLabel: "Shared storage" };
 }
 
 function friendlyFallbackReason(reason: string | null | undefined): string {
@@ -639,9 +631,25 @@ function ResultsStep(props: ResultsStepProps) {
 
         {result.error ? <ErrorPanel error={{ error: result.error }} nested /> : null}
 
+        {result.storage && result.quality && result.package_contents && (
+          <div className="storage-result-hero mb-5" role="region" aria-labelledby="storage-result-heading">
+            <p id="storage-result-heading" className="eyebrow">Storage result</p>
+            <div className="collection-result-grid mt-4">
+              <div className="collection-size-result">
+                <p className="font-mono text-sm text-[#607066]">{formatBytes(result.storage.original_total_bytes)} <span aria-hidden="true">→</span> {formatBytes(result.storage.package_total_bytes)}</p>
+                <p className={`mt-2 text-2xl font-semibold tracking-[-0.03em] ${savedStorage ? "text-[#215f36]" : "text-[#8a5a20]"}`}>{sizeResult}</p>
+              </div>
+              <div>
+                <p className="text-xl font-semibold tracking-[-0.025em]">{result.reconstructed_frame_count} photos preserved</p>
+                <p className="mt-2 text-sm leading-6 text-[#607066]">{result.shared_frame_count} using shared storage · {result.fallback_frame_count} stored whole</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {frame.reconstructed && (
           <>
-            <div className="mb-5 flex gap-2 overflow-x-auto pb-2" aria-label="Photo selector">
+            <div className="flex gap-2 overflow-x-auto pb-2" aria-label="Photo selector">
               {result.frames.map((item) => {
                 const itemStorage = storageCopy(item.storage_mode);
                 const needsReview = item.quality_threshold_pass === false;
@@ -665,15 +673,6 @@ function ResultsStep(props: ResultsStepProps) {
                   </button>
                 );
               })}
-            </div>
-
-            <div className="selected-photo-summary" aria-live="polite">
-              <p className="eyebrow">Selected photo</p>
-              <h3 className="mt-1 text-xl font-semibold tracking-[-0.025em]">Photo {frame.index + 1} · {frame.original_filename}</h3>
-              <p className="mt-3 font-semibold text-[#35483b]">{selectedStorage.headline}</p>
-              <p className="mt-1 max-w-3xl text-sm leading-6 text-[#607066]">{selectedStorage.description}</p>
-              <p className="mt-2 text-xs font-semibold text-[#607066]">Visual match: {formatVisualMatch(frame.ssim)}</p>
-              {frame.quality_threshold_pass === false && <p className="mt-2 text-sm font-semibold text-[#8b2f20]">Needs review · Compare this photo closely before saving.</p>}
             </div>
 
             {!selectedStoredWhole && (
@@ -745,24 +744,6 @@ function ResultsStep(props: ResultsStepProps) {
           </>
         )}
       </section>
-
-      {result.storage && result.quality && result.package_contents && (
-        <section className="panel" aria-labelledby="collection-result-heading">
-          <p className="eyebrow">Measured from the completed collection</p>
-          <h2 id="collection-result-heading" className="section-title">Collection result</h2>
-          <div className="collection-result-grid mt-5">
-            <div>
-              <p className="text-2xl font-semibold tracking-[-0.035em]">{result.reconstructed_frame_count} photos preserved</p>
-              <p className="mt-3 text-sm leading-6 text-[#607066]">{result.shared_frame_count} using shared storage</p>
-              <p className="text-sm leading-6 text-[#607066]">{result.fallback_frame_count} stored whole to protect quality</p>
-            </div>
-            <div className="collection-size-result">
-              <p className="font-mono text-sm text-[#607066]">{formatBytes(result.storage.original_total_bytes)} <span aria-hidden="true">→</span> {formatBytes(result.storage.package_total_bytes)}</p>
-              <p className={`mt-2 text-xl font-semibold ${savedStorage ? "text-[#215f36]" : "text-[#8a5a20]"}`}>{sizeResult}</p>
-            </div>
-          </div>
-        </section>
-      )}
 
       {result.storage && result.quality && result.package_contents && (
         <details className="explanation-details">
