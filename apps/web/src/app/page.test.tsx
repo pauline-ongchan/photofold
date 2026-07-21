@@ -220,17 +220,34 @@ describe("PhotoFold Gate 3 workflow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create PhotoFold collection" }));
 
     expect(await screen.findByText("Your collection is ready, but it is not smaller")).toBeInTheDocument();
-    expect(screen.getByText("Size difference")).toBeInTheDocument();
     expect(screen.queryByText("Space saved")).not.toBeInTheDocument();
     expect(screen.queryByText("Your smaller photo collection is ready")).not.toBeInTheDocument();
     expect(screen.getByText("Download collection")).toBeInTheDocument();
-    expect(screen.getByRole("list", { name: "Workflow progress" })).toBeInTheDocument();
-    expect(screen.queryByText("How PhotoFold works")).not.toBeInTheDocument();
-    expect(screen.getByText("What does SSIM mean?")).not.toBeVisible();
-    fireEvent.click(screen.getByText("Size, quality & collection details"));
-    expect(screen.getByText("What does SSIM mean?")).toBeVisible();
-    expect(screen.getByText(/needs PhotoFold to export photos/)).toBeVisible();
-    expect(screen.getByText(/1.000 is a perfect measured match/)).toBeInTheDocument();
+    expect(screen.getByText(/Contains everything needed to rebuild and export all photos/)).toBeInTheDocument();
+    const storageResult = screen.getByRole("region", { name: "Storage result" });
+    expect(storageResult).toBeInTheDocument();
+    expect(storageResult).toHaveTextContent("5 photos preserved");
+    expect(screen.getByText("4 shared storage")).toBeInTheDocument();
+    expect(screen.getByText("1 stored whole")).toBeInTheDocument();
+    expect(screen.getByText("500 B larger than the uploaded files")).toBeInTheDocument();
+    expect(screen.queryByText("Quality passed")).not.toBeInTheDocument();
+
+    const sharedStorageTab = screen.getByRole("tab", { name: "Shared storage (4)" });
+    const storedWholeTab = screen.getByRole("tab", { name: "Stored whole (1)" });
+    expect(sharedStorageTab).toHaveAttribute("aria-selected", "true");
+    expect(storedWholeTab).toHaveAttribute("aria-selected", "false");
+    const photoSelector = screen.getByLabelText("Photo selector");
+    expect(photoSelector.querySelectorAll("button")).toHaveLength(4);
+    expect(photoSelector).toContainElement(screen.getByRole("button", { name: "Photo 1 · Shared storage · 90.0% match" }));
+    expect(screen.queryByRole("button", { name: "Photo 5 · Stored whole · 86.0% match" })).not.toBeInTheDocument();
+    expect(document.querySelector(".selected-photo-summary")).not.toBeInTheDocument();
+
+    const advancedDetails = screen.getByText("Advanced details").closest("details");
+    expect(advancedDetails).not.toHaveAttribute("open");
+    fireEvent.click(screen.getByText("Advanced details"));
+    expect(screen.getByText(/SSIM compares structure, contrast, and detail/)).toBeInTheDocument();
+    expect(screen.getByText("About these results")).toBeInTheDocument();
+    expect(advancedDetails?.querySelectorAll("li")).toHaveLength(3);
     expect(screen.getByText(/1× fits the whole photo/)).toBeInTheDocument();
     const zoom = screen.getByRole("slider", { name: "Zoom" });
     expect(zoom).toHaveValue("1");
@@ -244,15 +261,42 @@ describe("PhotoFold Gate 3 workflow", () => {
     Object.defineProperty(canvas, "clientHeight", { configurable: true, value: 450 });
     fireEvent.pointerDown(viewer, { pointerId: 1, clientX: 100, clientY: 100 });
     fireEvent.pointerMove(viewer, { pointerId: 1, clientX: 160, clientY: 140 });
-    expect(canvas.style.transform).toContain("translate(60px, 40px) scale(2)");
+    expect(canvas.style.transform).toContain("translate3d(60px, 40px, 0) scale(2)");
     fireEvent.pointerUp(viewer, { pointerId: 1, clientX: 160, clientY: 140 });
+    fireEvent.change(zoom, { target: { value: "2.25" } });
+    expect(canvas.style.transform).toContain("translate3d(60px, 40px, 0) scale(2.25)");
     fireEvent.click(screen.getByRole("button", { name: "Fit" }));
     expect(zoom).toHaveValue("1");
 
     fireEvent.click(screen.getByRole("button", { name: "Change heatmap" }));
-    expect(screen.getByText("How to read the change heatmap")).toBeInTheDocument();
-    expect(screen.getByText(/Dark means little change/)).toBeInTheDocument();
+    expect(screen.getByText("What the change heatmap compares")).toBeInTheDocument();
+    expect(screen.getByText(/compares the rebuilt photo with the original, pixel by pixel/)).toBeInTheDocument();
+    expect(screen.getByText(/does not show what moved between burst photos/)).toBeInTheDocument();
     expect(screen.getByRole("img", { name: /difference for frame-2.jpg/i })).toBeInTheDocument();
+
+    const viewerControls = document.querySelector(".viewer-controls-stack");
+    fireEvent.click(storedWholeTab);
+    const storedWholeButton = screen.getByRole("button", { name: "Photo 5 · Stored whole · 86.0% match" });
+    expect(photoSelector.querySelectorAll("button")).toHaveLength(1);
+    expect(photoSelector).toContainElement(storedWholeButton);
+    expect(storedWholeButton).toHaveAttribute("aria-pressed", "true");
+    expect(storedWholeTab).toHaveAttribute("aria-selected", "true");
+    expect(sharedStorageTab).toHaveAttribute("aria-selected", "false");
+    expect(document.querySelector(".viewer-controls-stack")).toBe(viewerControls);
+    expect(screen.getByText(/Stored whole · SSIM 0.8600/)).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Viewer mode" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Original" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Rebuilt photo" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Change heatmap" })).not.toBeInTheDocument();
+    expect(screen.getByText("Original photo preserved")).toBeInTheDocument();
+    expect(screen.getByText(/stored as-is, so there is no rebuilt version to compare/)).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Stored photo frame-4.jpg" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Save this photo" })).toBeInTheDocument();
+
+    fireEvent.click(sharedStorageTab);
+    expect(photoSelector.querySelectorAll("button")).toHaveLength(4);
+    expect(screen.getByRole("group", { name: "Viewer mode" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Photo 3 · Shared storage · 88.0% match" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("uses neutral independent-only strategy language", async () => {
@@ -326,7 +370,10 @@ describe("PhotoFold Gate 3 workflow", () => {
     await screen.findByText("Most of these photos can share space");
     fireEvent.click(screen.getByRole("button", { name: "Create PhotoFold collection" }));
 
-    await screen.findByText("Creating now");
+    await screen.findByText("Folding now");
+    expect(screen.getByRole("button", { name: "Folding.." })).toBeDisabled();
+    expect(screen.getByRole("status")).toHaveTextContent("Rebuilding and checking every photo");
+    expect(screen.getByRole("region", { name: "Most of these photos can share space" })).toHaveAttribute("aria-busy", "true");
     expect(document.querySelectorAll(".step-number-active")).toHaveLength(1);
     expect(document.querySelector(".step-number-active")).toHaveTextContent("3");
     expect(document.querySelectorAll(".step-number-complete")).toHaveLength(2);

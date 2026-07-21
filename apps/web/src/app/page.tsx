@@ -3,6 +3,7 @@
 import type { PrototypeAnalysis } from "@photofold/contracts/prototype-analysis";
 import type { ErrorEnvelope } from "@photofold/contracts/prototype-error";
 import type { PrototypeResult } from "@photofold/contracts/prototype-result";
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type UploadItem = {
@@ -15,6 +16,7 @@ type UploadItem = {
 };
 
 type ViewMode = "compare" | "original" | "reconstruction" | "difference";
+type FrameStorageMode = PrototypeResult["frames"][number]["storage_mode"];
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes.toLocaleString()} B`;
@@ -30,6 +32,17 @@ function formatBytes(bytes: number): string {
 
 function formatPercent(value: number): string {
   return `${Math.abs(value).toFixed(1)}%`;
+}
+
+function formatVisualMatch(value: number | null | undefined): string {
+  if (value == null) return "Unavailable";
+  return `${(Math.max(0, Math.min(1, value)) * 100).toFixed(1)}%`;
+}
+
+function storageCopy(mode: FrameStorageMode) {
+  return mode === "independent_source"
+    ? { cardLabel: "Stored whole" }
+    : { cardLabel: "Shared storage" };
 }
 
 function friendlyFallbackReason(reason: string | null | undefined): string {
@@ -214,7 +227,7 @@ export default function Home() {
       <div className="mx-auto max-w-7xl">
         <Header onReset={reset} hasRun={uploads.length > 0} />
 
-        <div className={`mt-7 grid gap-5 ${result ? "" : "lg:grid-cols-[minmax(0,1fr)_300px]"}`}>
+        <div className="mt-7 grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
           <div className="min-w-0 space-y-5">
             {!analysis && !result && (
               <UploadStep
@@ -253,7 +266,7 @@ export default function Home() {
             {error && <ErrorPanel error={error} />}
           </div>
 
-          {!result && <WorkflowRail analysis={analysis} result={result} busy={busy} uploadCount={uploads.length} />}
+          <WorkflowRail analysis={analysis} result={result} busy={busy} uploadCount={uploads.length} />
         </div>
       </div>
     </main>
@@ -308,7 +321,7 @@ function UploadStep({
   setDragging,
 }: UploadStepProps) {
   return (
-    <section className="panel" aria-labelledby="upload-heading">
+    <section className="panel" aria-labelledby="upload-heading" aria-busy={busy}>
       <div className="panel-heading">
         <div>
           <p className="eyebrow">Step 1 of 4 · Choose</p>
@@ -379,10 +392,11 @@ function UploadStep({
         <p className="text-sm text-[#607066]">
           {uploads.length < 5 ? `${5 - uploads.length} more photo${5 - uploads.length === 1 ? "" : "s"} needed` : "Ready to check this set"}
         </p>
-        <button className="button-primary" type="button" disabled={!canAnalyze} onClick={onAnalyze}>
-          {busy ? "Checking your photos…" : "Check these photos"}
+        <button className={`button-primary ${busy ? "button-loading" : ""}`} type="button" disabled={!canAnalyze} onClick={onAnalyze}>
+          {busy ? <LoadingLabel label="Checking..." /> : "Check these photos"}
         </button>
       </div>
+      {busy && <LoadingStatus>Checking which photos can safely share space. Keep this page open.</LoadingStatus>}
     </section>
   );
 }
@@ -408,7 +422,7 @@ function AnalysisStep({ analysis, busy, onFold }: { analysis: PrototypeAnalysis;
       ? "Most of these photos can share space"
       : "These photos are safer kept whole";
   return (
-    <section className="panel" aria-labelledby="analysis-heading">
+    <section className="panel" aria-labelledby="analysis-heading" aria-busy={busy}>
       <div className="panel-heading">
         <div>
           <p className="eyebrow">Step 2 of 4 · Check</p>
@@ -419,13 +433,10 @@ function AnalysisStep({ analysis, busy, onFold }: { analysis: PrototypeAnalysis;
 
       <p className="mb-5 rounded-2xl bg-[#eef2e9] px-5 py-4 font-semibold">{strategyMessage}</p>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-3">
         <Metric label="Photos selected" value={`${analysis.source_frames.length}`} description="Files ready to process." />
         <Metric label="Photos that can share space" value={`${analysis.shared_frame_count}`} description="Reuse one copy of the scene." />
         <Metric label="Photos kept whole" value={`${analysis.fallback_frame_count}`} description="Stored separately for quality." />
-        <Metric label="Current size" value={formatBytes(analysis.original_total_bytes)} description="Combined upload size." />
-        <Metric label="Working image size" value={analysis.normalized_dimensions ? `${analysis.normalized_dimensions.width}×${analysis.normalized_dimensions.height}` : "Original size"} description="Shared working dimensions." />
-        <Metric label="Base photo" value={reference ? `${reference.index + 1} · ${reference.original_filename}` : "None needed"} description="Starting point for shared photos." />
       </div>
 
       <div className="mt-5 rounded-2xl border border-[#17211b]/10 p-5">
@@ -444,7 +455,7 @@ function AnalysisStep({ analysis, busy, onFold }: { analysis: PrototypeAnalysis;
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-[#607066]">
-                  {fallback ? friendlyFallbackReason(disposition.fallback_reason) : "Stores only what changed."} · {source.width}×{source.height}
+                  {fallback ? friendlyFallbackReason(disposition.fallback_reason) : "Stores only what changed."}
                 </p>
               </div>
             );
@@ -453,9 +464,12 @@ function AnalysisStep({ analysis, busy, onFold }: { analysis: PrototypeAnalysis;
       </div>
 
       <details className="explanation-details mt-5">
-        <summary>See how PhotoFold made this decision</summary>
+        <summary>Technical details</summary>
         <p className="mt-3 text-sm leading-6 text-[#607066]">PhotoFold looks for the same visual details in each photo and checks how much of the scene overlaps. These measurements help it avoid forcing unlike photos together.</p>
         <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <DataTerm label="Current size" value={formatBytes(analysis.original_total_bytes)} description="Combined upload size." />
+          <DataTerm label="Working image size" value={analysis.normalized_dimensions ? `${analysis.normalized_dimensions.width}×${analysis.normalized_dimensions.height}` : "Original size"} description="Shared working dimensions." />
+          <DataTerm label="Base photo" value={reference ? `${reference.index + 1} · ${reference.original_filename}` : "None needed"} description="Starting point for shared photos." />
           <DataTerm label="Base photo fit" value={analysis.reference_score?.toFixed(3) ?? "Not available"} description="How suitable the chosen base photo is for the full set; higher is better." />
           <DataTerm label="Matching-detail confidence" value={`${(meanInlier * 100).toFixed(1)}%`} description="The average share of matched details that agree on how the camera moved." />
           <DataTerm label="Smallest shared area" value={`${(minimumOverlap * 100).toFixed(1)}%`} description="The least scene overlap found among photos that will share space." />
@@ -466,10 +480,11 @@ function AnalysisStep({ analysis, busy, onFold }: { analysis: PrototypeAnalysis;
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-[#17211b]/10 pt-5">
         <p className="max-w-xl text-sm leading-6 text-[#607066]">Next, PhotoFold rebuilds every photo and checks size and quality.</p>
-        <button className="button-primary" disabled={analysis.status !== "analyzed_foldable" || busy} type="button" onClick={onFold}>
-          {busy ? "Creating and checking your collection…" : "Create PhotoFold collection"}
+        <button className={`button-primary ${busy ? "button-loading" : ""}`} disabled={analysis.status !== "analyzed_foldable" || busy} type="button" onClick={onFold}>
+          {busy ? <LoadingLabel label="Folding.." /> : "Create PhotoFold collection"}
         </button>
       </div>
+      {busy && <LoadingStatus>Rebuilding and checking every photo. Keep this page open.</LoadingStatus>}
     </section>
   );
 }
@@ -493,6 +508,7 @@ function ResultsStep(props: ResultsStepProps) {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [panning, setPanning] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const selectedByStorageRef = useRef<{ shared: number | null; storedWhole: number | null }>({ shared: null, storedWhole: null });
   const dragRef = useRef<{
     pointerId: number;
     startX: number;
@@ -501,7 +517,6 @@ function ResultsStep(props: ResultsStepProps) {
     originY: number;
   } | null>(null);
   const base = `/api/prototype/runs/${runId}/frames/${frame.index}`;
-  const successful = result.status === "complete";
   const statusTitle = result.status === "complete"
     ? "Your smaller photo collection is ready"
     : result.status === "complete_no_savings"
@@ -510,12 +525,28 @@ function ResultsStep(props: ResultsStepProps) {
         ? "Your photos were rebuilt, but quality was below our target"
         : "We could not finish this collection";
   const statusMessage = result.status === "complete"
-    ? "Every photo passed the quality check and the collection is smaller."
+    ? "All photos are preserved in a smaller collection."
     : result.status === "complete_no_savings"
-      ? "Quality passed, but this collection is larger than your uploads."
+      ? "All photos are preserved, but this collection is not smaller than your uploads."
       : result.status === "failed_quality"
         ? "At least one photo missed the quality target. Compare it before downloading."
         : "PhotoFold could not finish. See the error below.";
+  const selectedStorage = storageCopy(frame.storage_mode);
+  const selectedStoredWhole = frame.storage_mode === "independent_source";
+  const sharedFrames = result.frames.filter((item) => item.storage_mode !== "independent_source");
+  const storedWholeFrames = result.frames.filter((item) => item.storage_mode === "independent_source");
+  const mixedStorage = sharedFrames.length > 0 && storedWholeFrames.length > 0;
+  const visibleFrames = mixedStorage
+    ? selectedStoredWhole ? storedWholeFrames : sharedFrames
+    : result.frames;
+  const savedStorage = result.storage?.is_smaller_than_originals && result.storage.bytes_saved > 0;
+  const sizeResult = !result.storage
+    ? "Size unavailable"
+    : savedStorage
+      ? `${formatBytes(result.storage.bytes_saved)} saved · ${formatPercent(result.storage.percent_saved)} less storage`
+      : result.storage.package_total_bytes === result.storage.original_total_bytes
+        ? "No storage saved for this set"
+        : `${formatBytes(Math.abs(result.storage.package_total_bytes - result.storage.original_total_bytes))} larger than the uploaded files`;
 
   function resetPan() {
     setPan({ x: 0, y: 0 });
@@ -524,13 +555,18 @@ function ResultsStep(props: ResultsStepProps) {
   }
 
   function setViewerZoom(value: number) {
-    resetPan();
+    if (value <= 1) {
+      resetPan();
+      props.setZoom(1);
+      return;
+    }
+    setPan((current) => constrainPan(current.x, current.y, value));
     props.setZoom(value);
   }
 
-  function constrainPan(x: number, y: number) {
+  function constrainPan(x: number, y: number, zoom = props.zoom) {
     const canvas = canvasRef.current;
-    if (!canvas || props.zoom <= 1) return { x: 0, y: 0 };
+    if (!canvas || zoom <= 1) return { x: 0, y: 0 };
 
     const viewportWidth = canvas.clientWidth;
     const viewportHeight = canvas.clientHeight;
@@ -538,8 +574,8 @@ function ResultsStep(props: ResultsStepProps) {
     const viewportAspect = viewportWidth / viewportHeight;
     const fittedWidth = viewportAspect > imageAspect ? viewportHeight * imageAspect : viewportWidth;
     const fittedHeight = viewportAspect > imageAspect ? viewportHeight : viewportWidth / imageAspect;
-    const maxX = Math.max(0, (fittedWidth * props.zoom - viewportWidth) / 2);
-    const maxY = Math.max(0, (fittedHeight * props.zoom - viewportHeight) / 2);
+    const maxX = Math.max(0, (fittedWidth * zoom - viewportWidth) / 2);
+    const maxY = Math.max(0, (fittedHeight * zoom - viewportHeight) / 2);
 
     return {
       x: Math.max(-maxX, Math.min(maxX, x)),
@@ -582,73 +618,174 @@ function ResultsStep(props: ResultsStepProps) {
 
   return (
     <div className="space-y-5">
-      <section className="panel focus-results-panel" aria-labelledby="results-heading">
-        <header className="focus-results-header">
-          <ol className="focus-progress" aria-label="Workflow progress">
-            <li>✓ Choose</li>
-            <li>✓ Check</li>
-            <li>✓ Create</li>
-            <li aria-current="step">4 · Compare</li>
-          </ol>
-          <div className="focus-status-row">
-            <div>
-              <p className="eyebrow">Your PhotoFold collection</p>
-              <h2 id="results-heading" className="section-title">{statusTitle}</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-[#607066]">{statusMessage}</p>
-            </div>
-            <StatusBadge status={result.status} />
+      <section className="panel" aria-labelledby="results-heading">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">Step 4 of 4 · Compare</p>
+            <h2 id="results-heading" className="section-title">{statusTitle}</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#607066]">{statusMessage}</p>
           </div>
-        </header>
+          {frame.reconstructed && (
+            <div className="flex max-w-sm flex-col items-end gap-2">
+              <div className="flex flex-wrap justify-end gap-2">
+                <a className="button-primary" href={`${base}/export`}>{selectedStoredWhole ? "Save this photo" : "Save this rebuilt photo"}</a>
+                <a className="button-secondary" href={`/api/prototype/runs/${runId}/bundle`}>Download collection</a>
+              </div>
+              <p className="text-right text-xs leading-5 text-[#738077]">Contains everything needed to rebuild and export all photos.</p>
+            </div>
+          )}
+        </div>
 
-        {result.error && <div className="px-5 sm:px-7"><ErrorPanel error={{ error: result.error }} nested /></div>}
+        {result.error ? <ErrorPanel error={{ error: result.error }} nested /> : null}
+
+        {result.storage && result.quality && result.package_contents && (
+          <div className={`storage-result-hero mb-5 ${savedStorage ? "storage-result-hero-positive" : "storage-result-hero-neutral"}`} role="region" aria-labelledby="storage-result-heading">
+            <div className="storage-result-primary">
+              <p id="storage-result-heading" className="eyebrow">Storage result</p>
+              {savedStorage ? (
+                <div className="storage-result-saving">
+                  <p className="storage-result-value">{formatPercent(result.storage.percent_saved)} less storage</p>
+                  <span className="storage-result-badge">{formatBytes(result.storage.bytes_saved)} saved</span>
+                </div>
+              ) : (
+                <p className="storage-result-value storage-result-value-neutral">{sizeResult}</p>
+              )}
+              <p className="storage-size-flow">
+                <span>{formatBytes(result.storage.original_total_bytes)} original</span>
+                <span aria-hidden="true">→</span>
+                <span>{formatBytes(result.storage.package_total_bytes)} PhotoFold collection</span>
+              </p>
+            </div>
+            <div className="storage-result-summary">
+              <p><strong>{result.reconstructed_frame_count}</strong> photos preserved</p>
+              <div className="storage-result-chips" aria-label="Photo storage summary">
+                {result.shared_frame_count > 0 && <span>{result.shared_frame_count} shared storage</span>}
+                {result.fallback_frame_count > 0 && <span>{result.fallback_frame_count} stored whole</span>}
+              </div>
+            </div>
+          </div>
+        )}
 
         {frame.reconstructed && (
-          <section className="focus-viewer" aria-labelledby="viewer-heading">
-            <div className="focus-viewer-heading">
-              <div>
-                <p className="eyebrow">Photo {frame.index + 1} of {result.frames.length}</p>
-                <h3 id="viewer-heading" className="section-title">{frame.original_filename}</h3>
-                <p className="mt-1 text-sm text-[#607066]">
-                  {frame.storage_mode === "independent_source" ? "Kept whole" : "Shares space"}{frame.storage_mode !== "independent_source" ? ` · ${frame.patch_count} changed area${frame.patch_count === 1 ? "" : "s"}` : ""}
-                </p>
-                {frame.fallback_reason && <p className="mt-2 text-sm text-[#8a5a20]">{friendlyFallbackReason(frame.fallback_reason)}</p>}
+          <>
+            {mixedStorage && (
+              <div className="storage-group-tabs mb-3" role="tablist" aria-label="Photo storage group">
+                <button
+                  id="shared-storage-tab"
+                  className={`storage-group-tab ${!selectedStoredWhole ? "storage-group-tab-active" : ""}`}
+                  type="button"
+                  role="tab"
+                  aria-label={`Shared storage (${sharedFrames.length})`}
+                  aria-selected={!selectedStoredWhole}
+                  aria-controls="photo-selector"
+                  onClick={() => {
+                    if (!selectedStoredWhole) return;
+                    selectedByStorageRef.current.storedWhole = frame.index;
+                    const nextSharedFrame = sharedFrames.find(
+                      (item) => item.index === selectedByStorageRef.current.shared,
+                    ) ?? sharedFrames[0];
+                    if (!nextSharedFrame) return;
+                    resetPan();
+                    props.setZoom(1);
+                    props.setSelectedFrame(nextSharedFrame.index);
+                  }}
+                >
+                  Shared storage <span>{sharedFrames.length}</span>
+                </button>
+                <button
+                  id="stored-whole-tab"
+                  className={`storage-group-tab ${selectedStoredWhole ? "storage-group-tab-active" : ""}`}
+                  type="button"
+                  role="tab"
+                  aria-label={`Stored whole (${storedWholeFrames.length})`}
+                  aria-selected={selectedStoredWhole}
+                  aria-controls="photo-selector"
+                  onClick={() => {
+                    if (selectedStoredWhole) return;
+                    selectedByStorageRef.current.shared = frame.index;
+                    const nextStoredWholeFrame = storedWholeFrames.find(
+                      (item) => item.index === selectedByStorageRef.current.storedWhole,
+                    ) ?? storedWholeFrames[0];
+                    if (!nextStoredWholeFrame) return;
+                    resetPan();
+                    props.setZoom(1);
+                    props.setSelectedFrame(nextStoredWholeFrame.index);
+                  }}
+                >
+                  Stored whole <span>{storedWholeFrames.length}</span>
+                </button>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <a className="button-secondary" href={`${base}/export`}>Save this rebuilt photo</a>
-                <a className="button-primary" href={`/api/prototype/runs/${runId}/bundle`}>Download collection</a>
-              </div>
+            )}
+
+            <div
+              id="photo-selector"
+              className="flex gap-2 overflow-x-auto pb-2"
+              aria-label="Photo selector"
+              role={mixedStorage ? "tabpanel" : undefined}
+            >
+              {visibleFrames.map((item) => {
+                const itemStorage = storageCopy(item.storage_mode);
+                const needsReview = item.quality_threshold_pass === false;
+                const visualMatch = formatVisualMatch(item.ssim);
+                return (
+                  <button
+                    className={`frame-selector ${item.index === frame.index ? "frame-selector-active" : ""}`}
+                    type="button"
+                    key={item.index}
+                    aria-pressed={item.index === frame.index}
+                    aria-label={`Photo ${item.index + 1} · ${itemStorage.cardLabel} · ${visualMatch} match${needsReview ? " · Needs review" : ""}`}
+                    onClick={() => {
+                      if (item.storage_mode === "independent_source") selectedByStorageRef.current.storedWhole = item.index;
+                      else selectedByStorageRef.current.shared = item.index;
+                      resetPan();
+                      props.setSelectedFrame(item.index);
+                    }}
+                  >
+                    <span>Photo {item.index + 1}</span>
+                    <strong>{itemStorage.cardLabel}</strong>
+                    <span className="frame-match">{visualMatch} match</span>
+                    {needsReview && <em>Needs review</em>}
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="focus-viewer-controls">
-              <div className="flex flex-wrap gap-2" role="group" aria-label="Viewer mode">
+            <div className="viewer-controls-stack">
+              <div className="viewer-mode-row mt-5">
+                {!selectedStoredWhole ? <div className="flex flex-wrap gap-2" role="group" aria-label="Viewer mode">
                 {(["compare", "original", "reconstruction", "difference"] as ViewMode[]).map((mode) => (
                   <button className={`view-tab ${props.viewMode === mode ? "view-tab-active" : ""}`} type="button" key={mode} onClick={() => props.setViewMode(mode)}>
                     {mode === "difference" ? "Change heatmap" : mode === "reconstruction" ? "Rebuilt photo" : mode[0].toUpperCase() + mode.slice(1)}
                   </button>
                 ))}
-              </div>
-              <div className="flex items-center gap-3">
-                {props.zoom > 1 && (
-                  <button className="view-reset-button" type="button" onClick={() => setViewerZoom(1)}>
-                    Fit
-                  </button>
+                </div> : (
+                  <p className="stored-whole-label"><strong>Stored whole</strong><span>No rebuilt version needed</span></p>
                 )}
-                <label className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#607066]">
-                  Zoom {zoomLabel(props.zoom)}
-                  <input aria-label="Zoom" type="range" min="1" max="3" step="0.25" value={props.zoom} onChange={(event) => setViewerZoom(Number(event.target.value))} />
-                </label>
               </div>
+
+              <div className="viewer-adjustments-row">
+                <div className="flex items-center gap-3">
+                  {props.zoom > 1 && (
+                    <button className="view-reset-button" type="button" onClick={() => setViewerZoom(1)}>
+                      Fit
+                    </button>
+                  )}
+                  <label className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#607066]">
+                    Zoom {zoomLabel(props.zoom)}
+                    <input aria-label="Zoom" type="range" min="1" max="3" step="0.25" value={props.zoom} onChange={(event) => setViewerZoom(Number(event.target.value))} />
+                  </label>
+                </div>
+                {!selectedStoredWhole && props.viewMode === "compare" && (
+                  <label className="flex min-w-[min(100%,18rem)] flex-1 items-center gap-3 text-xs font-semibold text-[#607066]">
+                    Original {props.comparison}%
+                    <input className="min-w-0 flex-1" aria-label="Comparison position" type="range" min="0" max="100" value={props.comparison} onChange={(event) => props.setComparison(Number(event.target.value))} />
+                    Rebuilt
+                  </label>
+                )}
+              </div>
+
+              {selectedStoredWhole ? <StoredWholeGuide /> : <ViewerGuide mode={props.viewMode} />}
             </div>
-
-            <ViewerGuide mode={props.viewMode} />
-
-            {props.viewMode === "compare" && (
-              <label className="mt-4 flex items-center gap-3 text-xs font-semibold text-[#607066]">
-                Original side {props.comparison}%
-                <input className="flex-1" aria-label="Comparison position" type="range" min="0" max="100" value={props.comparison} onChange={(event) => props.setComparison(Number(event.target.value))} />
-                Rebuilt side
-              </label>
-            )}
 
             <div
               className={`viewer-stage mt-4 ${props.zoom > 1 ? "viewer-stage-pannable" : ""} ${panning ? "viewer-stage-panning" : ""}`}
@@ -662,9 +799,12 @@ function ResultsStep(props: ResultsStepProps) {
               <div
                 ref={canvasRef}
                 className={`viewer-canvas ${panning ? "viewer-canvas-panning" : ""}`}
-                style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${props.zoom})` }}
+                style={{ transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${props.zoom})` }}
               >
-                {props.viewMode === "compare" ? (
+                {selectedStoredWhole ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={`${base}/original`} alt={`Stored photo ${frame.original_filename}`} />
+                ) : props.viewMode === "compare" ? (
                   <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={`${base}/reconstruction`} alt={`Reconstruction of ${frame.original_filename}`} />
@@ -676,96 +816,45 @@ function ResultsStep(props: ResultsStepProps) {
                   </>
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={`${base}/${props.viewMode}`} alt={`${props.viewMode} for ${frame.original_filename}`} />
+                  <img className={props.viewMode === "difference" ? "difference-heatmap" : ""} src={`${base}/${props.viewMode}`} alt={`${props.viewMode} for ${frame.original_filename}`} />
                 )}
               </div>
             </div>
-
-            <div className="mt-4 flex gap-2 overflow-x-auto pb-2" aria-label="Frame browser">
-              {result.frames.map((item) => (
-                <button
-                  className={`frame-selector ${item.index === frame.index ? "frame-selector-active" : ""}`}
-                  type="button"
-                  key={item.index}
-                  onClick={() => {
-                    resetPan();
-                    props.setSelectedFrame(item.index);
-                  }}
-                >
-                  <span>Photo {item.index + 1}</span>
-                  <strong>{item.storage_mode === "independent_source" ? "Kept whole" : "Shares space"} · match {item.ssim?.toFixed(4) ?? "—"}</strong>
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {result.storage && result.quality && result.package_contents && (
-          <>
-            <div className="focus-metrics">
-              <Metric
-                label={successful ? "Space saved" : "Size difference"}
-                value={successful ? `${formatPercent(result.storage.percent_saved)}` : `${formatBytes(Math.abs(result.storage.byte_delta))} ${result.storage.byte_delta < 0 ? "larger" : "smaller"}`}
-                description={successful ? `${formatBytes(result.storage.bytes_saved)} less than your uploads.` : "Compared with your uploads."}
-                tone={successful ? "positive" : "neutral"}
-              />
-              <Metric
-                label="Visual match"
-                value={result.quality.threshold_pass ? "Quality passed" : "Needs review"}
-                description={`${result.quality.mean_ssim.toFixed(4)} avg · ${result.quality.minimum_ssim.toFixed(4)} lowest`}
-              />
-              <Metric label="Photos ready" value={`${result.reconstructed_frame_count} of ${result.frames.length}`} description="Rebuilt and ready to save." />
-            </div>
-
-            <details className="focus-results-details">
-              <summary>Size, quality & collection details</summary>
-              <div className="focus-details-content">
-                <p className="rounded-2xl bg-[#eef2e9] px-5 py-4 text-sm leading-6 text-[#526258]">
-                  <strong className="text-[#17211b]">How it was stored:</strong> {result.shared_frame_count} sharing space · {result.fallback_frame_count} kept whole
-                </p>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <Metric label="Original photos" value={formatBytes(result.storage.original_total_bytes)} description="Uploaded file size." />
-                  <Metric label="PhotoFold collection" value={formatBytes(result.storage.package_total_bytes)} description="Download size." />
-                </div>
-                <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                  <div className="explanation-card">
-                    <p className="font-semibold text-[#17211b]">What does SSIM mean?</p>
-                    <p className="mt-2 text-sm leading-6 text-[#607066]">
-                      SSIM (<strong className="text-[#35483b]">Structural Similarity Index</strong>) compares structure, contrast, and detail. 1.000 is a perfect measured match; higher is better.
-                    </p>
-                    <p className="mt-2 text-xs leading-5 text-[#738077]">Average covers the set; lowest flags the weakest photo. Always inspect the images.</p>
-                  </div>
-                  <div className="explanation-card">
-                    <p className="font-semibold text-[#17211b]">Did the quality check pass?</p>
-                    <p className="mt-2 text-sm leading-6 text-[#607066]">
-                      Targets: <strong className="text-[#35483b]">{result.quality.min_mean_threshold.toFixed(2)}</strong> average and <strong className="text-[#35483b]">{result.quality.min_per_frame_threshold.toFixed(2)}</strong> for every photo.
-                    </p>
-                    <p className={`mt-3 text-sm font-semibold ${result.quality.threshold_pass ? "text-[#215f36]" : "text-[#8b2f20]"}`}>
-                      {result.quality.threshold_pass ? "✓ This collection passed both checks." : "This collection did not pass both checks."}
-                    </p>
-                  </div>
-                </div>
-                <dl className="mt-5 grid gap-4 border-t border-[#17211b]/10 pt-5 sm:grid-cols-2 lg:grid-cols-3">
-                  <DataTerm label="Photos rebuilt" value={`${result.reconstructed_frame_count}`} description="Photos successfully recreated from this collection." />
-                  <DataTerm label="Files inside collection" value={`${result.package_contents.member_count}`} description="All images, change data, and instructions stored in the .photofold file." />
-                  <DataTerm label="Changed areas stored" value={`${result.package_contents.patch_count}`} description="Small regions saved separately because they differ from the shared scene." />
-                  <DataTerm label="Photos kept whole" value={`${result.package_contents.independent_source_count}`} description="Photos stored independently because sharing was not a safe fit." />
-                  <DataTerm label="Integrity fingerprint" value={`${result.storage.package_sha256.slice(0, 12)}…`} description="Confirms that the downloaded file has not changed or become corrupted." />
-                </dl>
-                <p className="mt-5 border-t border-[#17211b]/10 pt-4 text-xs leading-5 text-[#607066]">
-                  A <strong className="text-[#35483b]">.photofold file</strong> holds the full set and needs PhotoFold to export photos.
-                </p>
-              </div>
-            </details>
           </>
         )}
       </section>
 
-      <details className="explanation-details">
-        <summary>About this storage comparison and technical notes</summary>
-        <p className="mt-3 text-sm leading-6 text-[#607066]">The size comparison uses the exact files you uploaded. It tells you whether this collection is smaller than those files; it does not compare every possible photo format or compression setting during this quick interactive run.</p>
-        {result.warnings.length > 0 && <ul className="mt-3 space-y-1 text-sm leading-6 text-[#607066]">{result.warnings.map((warning) => <li key={warning}>— {warning}</li>)}</ul>}
-      </details>
+      {result.storage && result.quality && result.package_contents && (
+        <details className="explanation-details">
+          <summary>Advanced details</summary>
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            <div className="explanation-card">
+              <p className="font-semibold text-[#17211b]">Visual match: {result.quality.threshold_pass ? "Meets quality target" : "Needs review"}</p>
+              <p className="mt-2 text-sm leading-6 text-[#607066]">SSIM: <strong className="text-[#35483b]">{result.quality.mean_ssim.toFixed(4)}</strong> average · <strong className="text-[#35483b]">{result.quality.minimum_ssim.toFixed(4)}</strong> lowest</p>
+              <p className="mt-2 text-xs leading-5 text-[#738077]">SSIM compares structure, contrast, and detail. 1.000 is a perfect measured match; the photo-card percentage shows this same value as a percentage.</p>
+            </div>
+            <div className="explanation-card">
+              <p className="font-semibold text-[#17211b]">Selected photo</p>
+              <p className="mt-2 text-sm leading-6 text-[#607066]">{selectedStorage.cardLabel} · SSIM {frame.ssim?.toFixed(4) ?? "Unavailable"} · {frame.patch_count ?? 0} changed region{frame.patch_count === 1 ? "" : "s"} stored</p>
+              {frame.fallback_reason && <p className="mt-2 text-xs leading-5 text-[#738077]">{friendlyFallbackReason(frame.fallback_reason)}</p>}
+            </div>
+          </div>
+          <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <DataTerm label="Storage method" value={`${result.shared_frame_count} shared · ${result.fallback_frame_count} whole`} description="Shared photos reuse the scene; independently stored photos preserve their full source." />
+            <DataTerm label="Changed regions stored" value={`${result.package_contents.patch_count}`} description="Unique areas saved separately from the shared scene." />
+            <DataTerm label="Files inside collection" value={`${result.package_contents.member_count}`} description="Images, changed regions, and rebuild instructions in the archive." />
+            <DataTerm label="Integrity fingerprint" value={`${result.storage.package_sha256.slice(0, 12)}…`} description="Used to confirm the downloaded collection has not changed." />
+          </dl>
+          <div className="mt-5 border-t border-[#17211b]/10 pt-4">
+            <p className="font-semibold text-[#17211b]">About these results</p>
+            <ul className="mt-2 space-y-1 text-xs leading-5 text-[#738077]">
+              <li>— Results reflect this uploaded set and its exact source files; matched-quality comparisons come from a separate benchmark and may vary with other formats or settings.</li>
+              <li>— Final savings include photos stored whole and are measured from the completed .photofold archive.</li>
+              <li>— This prototype processes one collection at a time and does not preserve unfinished sessions after a restart.</li>
+            </ul>
+          </div>
+        </details>
+      )}
     </div>
   );
 }
@@ -774,7 +863,7 @@ function WorkflowRail({ analysis, result, busy, uploadCount }: { analysis: Proto
   const steps = [
     { label: "Choose photos", detail: uploadCount ? `${uploadCount} selected` : "5–20 from one moment", state: busy === "analyzing" || analysis || result ? "complete" : "current" },
     { label: "Check the match", detail: analysis ? "Check complete" : busy === "analyzing" ? "Checking now" : "Find what can be shared", state: busy === "folding" || result ? "complete" : busy === "analyzing" || analysis ? "current" : "upcoming" },
-    { label: "Create collection", detail: result ? "Collection created" : busy === "folding" ? "Creating now" : "Rebuild and measure", state: result ? "complete" : busy === "folding" ? "current" : "upcoming" },
+    { label: "Create collection", detail: result ? "Collection created" : busy === "folding" ? "Folding now" : "Rebuild and measure", state: result ? "complete" : busy === "folding" ? "current" : "upcoming" },
     { label: "Compare & download", detail: result?.reconstructed_frame_count ? `${result.reconstructed_frame_count} photos ready` : "Review every photo", state: result ? "current" : "upcoming" },
   ];
   return (
@@ -795,6 +884,23 @@ function WorkflowRail({ analysis, result, busy, uploadCount }: { analysis: Proto
         <p className="mt-2">No account or cloud upload. Working files stay on this computer.</p>
       </div>
     </aside>
+  );
+}
+
+function LoadingLabel({ label }: { label: string }) {
+  return (
+    <span className="loading-label">
+      <span className="loading-spinner" aria-hidden="true" />
+      {label}
+    </span>
+  );
+}
+
+function LoadingStatus({ children }: { children: ReactNode }) {
+  return (
+    <p className="loading-status" role="status" aria-live="polite">
+      {children}
+    </p>
   );
 }
 
@@ -822,9 +928,9 @@ function StatusBadge({ status, label }: { status: string; label?: string }) {
   const positive = status === "safe_to_fold" || status === "shared_scene" || status === "complete";
   const warning = status === "hybrid" || status === "independent_only" || status === "complete_no_savings" || status === "failed_quality";
   const friendlyLabel = status === "complete"
-    ? "Smaller & quality checked"
+    ? "Smaller collection"
     : status === "complete_no_savings"
-      ? "Quality checked · Not smaller"
+      ? "Collection ready · Not smaller"
       : status === "failed_quality"
         ? "Needs a closer look"
         : status === "failed"
@@ -851,8 +957,8 @@ function ErrorPanel({ error, nested = false }: { error: ErrorEnvelope; nested?: 
 function ViewerGuide({ mode }: { mode: ViewMode }) {
   const content = mode === "difference"
     ? {
-        title: "How to read the change heatmap",
-        body: "Dark means little change. Orange to white means larger differences worth checking; bright does not always mean damaged. Zoom and drag to inspect.",
+        title: "What the change heatmap compares",
+        body: "It compares the rebuilt photo with the original, pixel by pixel. Purple means they are very similar; orange to white marks larger color or brightness differences. It does not show what moved between burst photos.",
       }
     : mode === "compare"
       ? {
@@ -872,6 +978,15 @@ function ViewerGuide({ mode }: { mode: ViewMode }) {
     <div className={`viewer-guide mt-4 ${mode === "difference" ? "viewer-guide-heatmap" : ""}`} role="note">
       <p className="font-semibold text-[#17211b]">{content.title}</p>
       <p className="mt-1 text-sm leading-6 text-[#607066]">{content.body}</p>
+    </div>
+  );
+}
+
+function StoredWholeGuide() {
+  return (
+    <div className="viewer-guide mt-4" role="note">
+      <p className="font-semibold text-[#17211b]">Original photo preserved</p>
+      <p className="mt-1 text-sm leading-6 text-[#607066]">This photo is stored as-is, so there is no rebuilt version to compare.</p>
     </div>
   );
 }
