@@ -29,25 +29,6 @@ button, a { -webkit-tap-highlight-color: transparent; }
   margin-bottom: 1.25rem;
 }
 
-.focus-results-panel { padding: 0; }
-.focus-results-header { border-bottom: 1px solid rgb(23 33 27 / 10%); }
-.focus-progress { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 1.1rem; border-bottom: 1px solid rgb(23 33 27 / 8%); padding: 0.8rem 1.25rem; color: #738077; font-size: 0.72rem; font-weight: 700; }
-.focus-progress li { list-style: none; }
-.focus-progress [aria-current="step"] { color: #17211b; }
-.focus-status-row { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1.25rem; }
-.focus-viewer { padding: 1.25rem; }
-.focus-viewer-heading { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
-.focus-viewer-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; border-block: 1px solid rgb(23 33 27 / 10%); padding-block: 0.8rem; }
-.focus-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid rgb(23 33 27 / 10%); }
-.focus-metrics .metric { min-height: 0; border-radius: 0; background: transparent; padding: 1.1rem 1.25rem; }
-.focus-metrics .metric + .metric { border-left: 1px solid rgb(23 33 27 / 10%); }
-.focus-metrics .metric-positive { background: #dbf2df; }
-.focus-metrics .metric strong { font-size: 1.2rem; }
-.focus-results-details { border-top: 1px solid rgb(23 33 27 / 10%); }
-.focus-results-details > summary { cursor: pointer; padding: 1rem 1.25rem; color: #35483b; font-size: 0.875rem; font-weight: 700; }
-.focus-results-details[open] > summary { border-bottom: 1px solid rgb(23 33 27 / 10%); }
-.focus-details-content { padding: 1.25rem; }
-
 .eyebrow {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.7rem;
@@ -149,18 +130,6 @@ input[type="range"] { accent-color: #496151; }
 
 @media (min-width: 640px) {
   .panel { padding: 1.75rem; }
-  .panel.focus-results-panel { padding: 0; }
-  .focus-progress { padding-inline: 1.75rem; }
-  .focus-status-row,
-  .focus-viewer,
-  .focus-details-content { padding: 1.75rem; }
-  .focus-results-details > summary { padding-inline: 1.75rem; }
-  .focus-metrics .metric { padding-inline: 1.75rem; }
-}
-
-@media (max-width: 639px) {
-  .focus-metrics { grid-template-columns: 1fr; }
-  .focus-metrics .metric + .metric { border-left: 0; border-top: 1px solid rgb(23 33 27 / 10%); }
 }
 
 @media (prefers-reduced-motion: reduce) {

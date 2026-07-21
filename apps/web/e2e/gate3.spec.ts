@@ -39,8 +39,6 @@ test("curated upload → analyze → fold → inspect → export → bundle", as
   await expect(page.getByRole("heading", { name: "Your smaller photo collection is ready" })).toBeVisible({
     timeout: 120_000,
   });
-  await expect(page.getByText("Quality passed", { exact: true })).toBeVisible();
-  await page.getByText("Size, quality & collection details", { exact: true }).click();
   await expect(page.getByText("What does SSIM mean?")).toBeVisible();
 
   const resultPath = resolve(repositoryRoot, "artifacts/gate3/latest/result.json");
@@ -79,7 +77,6 @@ test("curated upload → analyze → fold → inspect → export → bundle", as
   await zoom.press("End");
   await expect(zoom).toHaveValue("3");
   const transformBeforePan = await viewerCanvas.evaluate((element) => element.getAttribute("style"));
-  await viewer.scrollIntoViewIfNeeded();
   const box = await viewer.boundingBox();
   if (!box) throw new Error("Viewer bounds are unavailable");
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -104,7 +101,7 @@ test("curated upload → analyze → fold → inspect → export → bundle", as
     name: `Photo 7 Shares space · match ${result.frames[6].ssim.toFixed(4)}`,
   });
   await frameSeven.click();
-  await expect(page.getByRole("heading", { name: "frame-006.jpg" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Compare photo 7 · frame-006.jpg" })).toBeVisible();
 
   const exportDownloadPromise = page.waitForEvent("download");
   await page.getByRole("link", { name: "Save this rebuilt photo" }).click();

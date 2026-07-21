@@ -224,12 +224,8 @@ describe("PhotoFold Gate 3 workflow", () => {
     expect(screen.queryByText("Space saved")).not.toBeInTheDocument();
     expect(screen.queryByText("Your smaller photo collection is ready")).not.toBeInTheDocument();
     expect(screen.getByText("Download collection")).toBeInTheDocument();
-    expect(screen.getByRole("list", { name: "Workflow progress" })).toBeInTheDocument();
-    expect(screen.queryByText("How PhotoFold works")).not.toBeInTheDocument();
-    expect(screen.getByText("What does SSIM mean?")).not.toBeVisible();
-    fireEvent.click(screen.getByText("Size, quality & collection details"));
-    expect(screen.getByText("What does SSIM mean?")).toBeVisible();
-    expect(screen.getByText(/needs PhotoFold to export photos/)).toBeVisible();
+    expect(screen.getByText(/needs PhotoFold to export photos/)).toBeInTheDocument();
+    expect(screen.getByText("What does SSIM mean?")).toBeInTheDocument();
     expect(screen.getByText(/1.000 is a perfect measured match/)).toBeInTheDocument();
     expect(screen.getByText(/1× fits the whole photo/)).toBeInTheDocument();
     const zoom = screen.getByRole("slider", { name: "Zoom" });
