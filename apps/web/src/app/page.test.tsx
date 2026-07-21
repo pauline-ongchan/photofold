@@ -225,6 +225,9 @@ describe("PhotoFold Gate 3 workflow", () => {
     expect(screen.queryByText("Your smaller photo collection is ready")).not.toBeInTheDocument();
     expect(screen.getByText("Download collection")).toBeInTheDocument();
     expect(screen.getByText(/needs PhotoFold to export photos/)).toBeInTheDocument();
+    const technicalDetails = screen.getByText("Technical details").closest("details");
+    expect(technicalDetails).not.toHaveAttribute("open");
+    fireEvent.click(screen.getByText("Technical details"));
     expect(screen.getByText("What does SSIM mean?")).toBeInTheDocument();
     expect(screen.getByText(/1.000 is a perfect measured match/)).toBeInTheDocument();
     expect(screen.getByText(/1× fits the whole photo/)).toBeInTheDocument();
@@ -247,7 +250,7 @@ describe("PhotoFold Gate 3 workflow", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Change heatmap" }));
     expect(screen.getByText("How to read the change heatmap")).toBeInTheDocument();
-    expect(screen.getByText(/Dark means little change/)).toBeInTheDocument();
+    expect(screen.getByText(/Colors are boosted so subtle differences are easier to spot/)).toBeInTheDocument();
     expect(screen.getByRole("img", { name: /difference for frame-2.jpg/i })).toBeInTheDocument();
   });
 
@@ -322,7 +325,10 @@ describe("PhotoFold Gate 3 workflow", () => {
     await screen.findByText("Most of these photos can share space");
     fireEvent.click(screen.getByRole("button", { name: "Create PhotoFold collection" }));
 
-    await screen.findByText("Creating now");
+    await screen.findByText("Folding now");
+    expect(screen.getByRole("button", { name: "Folding.." })).toBeDisabled();
+    expect(screen.getByRole("status")).toHaveTextContent("Rebuilding and checking every photo");
+    expect(screen.getByRole("region", { name: "Most of these photos can share space" })).toHaveAttribute("aria-busy", "true");
     expect(document.querySelectorAll(".step-number-active")).toHaveLength(1);
     expect(document.querySelector(".step-number-active")).toHaveTextContent("3");
     expect(document.querySelectorAll(".step-number-complete")).toHaveLength(2);

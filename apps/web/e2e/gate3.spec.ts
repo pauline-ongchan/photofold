@@ -32,13 +32,14 @@ test("curated upload → analyze → fold → inspect → export → bundle", as
   const analysisRegion = page.getByRole("region", { name: "These photos are a strong match" });
   await expect(analysisRegion.getByText("Ready to create", { exact: true })).toBeVisible();
   await expect(analysisRegion.getByText("All 7 photos can share space.", { exact: true })).toBeVisible();
-  await analysisRegion.getByText("See how PhotoFold made this decision").click();
+  await analysisRegion.getByText("Technical details").click();
   await expect(analysisRegion.getByText("Matching-detail confidence", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Create PhotoFold collection" }).click();
   await expect(page.getByRole("heading", { name: "Your smaller photo collection is ready" })).toBeVisible({
     timeout: 120_000,
   });
+  await page.getByText("Technical details").click();
   await expect(page.getByText("What does SSIM mean?")).toBeVisible();
 
   const resultPath = resolve(repositoryRoot, "artifacts/gate3/latest/result.json");
@@ -48,7 +49,8 @@ test("curated upload → analyze → fold → inspect → export → bundle", as
   expect(result.storage.package_total_bytes).toBeGreaterThan(0);
   expect(result.storage.package_total_bytes).toBeLessThan(result.storage.original_total_bytes);
   await expect(page.getByText("Space saved")).toBeVisible();
-  await expect(page.getByText(`${result.quality.mean_ssim.toFixed(4)} avg · ${result.quality.minimum_ssim.toFixed(4)} lowest`)).toBeVisible();
+  await expect(page.getByText(result.quality.mean_ssim.toFixed(4), { exact: true })).toBeVisible();
+  await expect(page.getByText(result.quality.minimum_ssim.toFixed(4), { exact: true })).toBeVisible();
 
   const viewer = page.getByTestId("frame-viewer");
   const zoom = page.getByLabel("Zoom");
@@ -77,6 +79,7 @@ test("curated upload → analyze → fold → inspect → export → bundle", as
   await zoom.press("End");
   await expect(zoom).toHaveValue("3");
   const transformBeforePan = await viewerCanvas.evaluate((element) => element.getAttribute("style"));
+  await viewer.scrollIntoViewIfNeeded();
   const box = await viewer.boundingBox();
   if (!box) throw new Error("Viewer bounds are unavailable");
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -98,7 +101,7 @@ test("curated upload → analyze → fold → inspect → export → bundle", as
   await expect(page.getByLabel("Frame browser").getByRole("button")).toHaveCount(7);
 
   const frameSeven = page.getByRole("button", {
-    name: `Photo 7 Shares space · match ${result.frames[6].ssim.toFixed(4)}`,
+    name: "Photo 7 Quality passed",
   });
   await frameSeven.click();
   await expect(page.getByRole("heading", { name: "Compare photo 7 · frame-006.jpg" })).toBeVisible();
@@ -154,7 +157,7 @@ test("native burst completes with explicit per-frame fallback", async ({ page })
   const fallback = result.frames.find((frame: { storage_mode: string }) => frame.storage_mode === "independent_source");
   expect(fallback).toBeTruthy();
   await page.getByRole("button", {
-    name: `Photo ${fallback.index + 1} Kept whole · match ${fallback.ssim.toFixed(4)}`,
+    name: `Photo ${fallback.index + 1} ${fallback.quality_threshold_pass ? "Quality passed" : "Needs review"}`,
   }).click();
   await expect(page.getByText(/did not line up closely enough with the others/)).toBeVisible();
   await expect(page.getByText(/inlier ratio/i)).toHaveCount(0);

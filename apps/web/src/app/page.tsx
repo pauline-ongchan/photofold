@@ -3,6 +3,7 @@
 import type { PrototypeAnalysis } from "@photofold/contracts/prototype-analysis";
 import type { ErrorEnvelope } from "@photofold/contracts/prototype-error";
 import type { PrototypeResult } from "@photofold/contracts/prototype-result";
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type UploadItem = {
@@ -308,7 +309,7 @@ function UploadStep({
   setDragging,
 }: UploadStepProps) {
   return (
-    <section className="panel" aria-labelledby="upload-heading">
+    <section className="panel" aria-labelledby="upload-heading" aria-busy={busy}>
       <div className="panel-heading">
         <div>
           <p className="eyebrow">Step 1 of 4 · Choose</p>
@@ -379,10 +380,11 @@ function UploadStep({
         <p className="text-sm text-[#607066]">
           {uploads.length < 5 ? `${5 - uploads.length} more photo${5 - uploads.length === 1 ? "" : "s"} needed` : "Ready to check this set"}
         </p>
-        <button className="button-primary" type="button" disabled={!canAnalyze} onClick={onAnalyze}>
-          {busy ? "Checking your photos…" : "Check these photos"}
+        <button className={`button-primary ${busy ? "button-loading" : ""}`} type="button" disabled={!canAnalyze} onClick={onAnalyze}>
+          {busy ? <LoadingLabel label="Checking..." /> : "Check these photos"}
         </button>
       </div>
+      {busy && <LoadingStatus>Checking which photos can safely share space. Keep this page open.</LoadingStatus>}
     </section>
   );
 }
@@ -408,7 +410,7 @@ function AnalysisStep({ analysis, busy, onFold }: { analysis: PrototypeAnalysis;
       ? "Most of these photos can share space"
       : "These photos are safer kept whole";
   return (
-    <section className="panel" aria-labelledby="analysis-heading">
+    <section className="panel" aria-labelledby="analysis-heading" aria-busy={busy}>
       <div className="panel-heading">
         <div>
           <p className="eyebrow">Step 2 of 4 · Check</p>
@@ -419,13 +421,10 @@ function AnalysisStep({ analysis, busy, onFold }: { analysis: PrototypeAnalysis;
 
       <p className="mb-5 rounded-2xl bg-[#eef2e9] px-5 py-4 font-semibold">{strategyMessage}</p>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-3">
         <Metric label="Photos selected" value={`${analysis.source_frames.length}`} description="Files ready to process." />
         <Metric label="Photos that can share space" value={`${analysis.shared_frame_count}`} description="Reuse one copy of the scene." />
         <Metric label="Photos kept whole" value={`${analysis.fallback_frame_count}`} description="Stored separately for quality." />
-        <Metric label="Current size" value={formatBytes(analysis.original_total_bytes)} description="Combined upload size." />
-        <Metric label="Working image size" value={analysis.normalized_dimensions ? `${analysis.normalized_dimensions.width}×${analysis.normalized_dimensions.height}` : "Original size"} description="Shared working dimensions." />
-        <Metric label="Base photo" value={reference ? `${reference.index + 1} · ${reference.original_filename}` : "None needed"} description="Starting point for shared photos." />
       </div>
 
       <div className="mt-5 rounded-2xl border border-[#17211b]/10 p-5">
@@ -444,7 +443,7 @@ function AnalysisStep({ analysis, busy, onFold }: { analysis: PrototypeAnalysis;
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-[#607066]">
-                  {fallback ? friendlyFallbackReason(disposition.fallback_reason) : "Stores only what changed."} · {source.width}×{source.height}
+                  {fallback ? friendlyFallbackReason(disposition.fallback_reason) : "Stores only what changed."}
                 </p>
               </div>
             );
@@ -453,9 +452,12 @@ function AnalysisStep({ analysis, busy, onFold }: { analysis: PrototypeAnalysis;
       </div>
 
       <details className="explanation-details mt-5">
-        <summary>See how PhotoFold made this decision</summary>
+        <summary>Technical details</summary>
         <p className="mt-3 text-sm leading-6 text-[#607066]">PhotoFold looks for the same visual details in each photo and checks how much of the scene overlaps. These measurements help it avoid forcing unlike photos together.</p>
         <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <DataTerm label="Current size" value={formatBytes(analysis.original_total_bytes)} description="Combined upload size." />
+          <DataTerm label="Working image size" value={analysis.normalized_dimensions ? `${analysis.normalized_dimensions.width}×${analysis.normalized_dimensions.height}` : "Original size"} description="Shared working dimensions." />
+          <DataTerm label="Base photo" value={reference ? `${reference.index + 1} · ${reference.original_filename}` : "None needed"} description="Starting point for shared photos." />
           <DataTerm label="Base photo fit" value={analysis.reference_score?.toFixed(3) ?? "Not available"} description="How suitable the chosen base photo is for the full set; higher is better." />
           <DataTerm label="Matching-detail confidence" value={`${(meanInlier * 100).toFixed(1)}%`} description="The average share of matched details that agree on how the camera moved." />
           <DataTerm label="Smallest shared area" value={`${(minimumOverlap * 100).toFixed(1)}%`} description="The least scene overlap found among photos that will share space." />
@@ -466,10 +468,11 @@ function AnalysisStep({ analysis, busy, onFold }: { analysis: PrototypeAnalysis;
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-[#17211b]/10 pt-5">
         <p className="max-w-xl text-sm leading-6 text-[#607066]">Next, PhotoFold rebuilds every photo and checks size and quality.</p>
-        <button className="button-primary" disabled={analysis.status !== "analyzed_foldable" || busy} type="button" onClick={onFold}>
-          {busy ? "Just folding…" : "Create PhotoFold collection"}
+        <button className={`button-primary ${busy ? "button-loading" : ""}`} disabled={analysis.status !== "analyzed_foldable" || busy} type="button" onClick={onFold}>
+          {busy ? <LoadingLabel label="Folding.." /> : "Create PhotoFold collection"}
         </button>
       </div>
+      {busy && <LoadingStatus>Rebuilding and checking every photo. Keep this page open.</LoadingStatus>}
     </section>
   );
 }
@@ -595,49 +598,51 @@ function ResultsStep(props: ResultsStepProps) {
 
         {result.storage && result.quality && result.package_contents ? (
           <>
-            <p className="mb-5 rounded-2xl bg-[#eef2e9] px-5 py-4 text-sm leading-6 text-[#526258]">
-              <strong className="text-[#17211b]">How it was stored:</strong> {result.shared_frame_count} sharing space · {result.fallback_frame_count} kept whole
-            </p>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <Metric label="Original photos" value={formatBytes(result.storage.original_total_bytes)} description="Uploaded file size." />
-              <Metric label="PhotoFold collection" value={formatBytes(result.storage.package_total_bytes)} description="Download size." />
+              <Metric label="New collection" value={formatBytes(result.storage.package_total_bytes)} description="Download size." />
               <Metric
                 label={successful ? "Space saved" : "Size difference"}
                 value={successful ? `${formatBytes(result.storage.bytes_saved)} · ${formatPercent(result.storage.percent_saved)}` : `${formatBytes(Math.abs(result.storage.byte_delta))} ${result.storage.byte_delta < 0 ? "larger" : "smaller"}`}
                 description="Compared with your uploads."
                 tone={successful ? "positive" : "neutral"}
               />
-              <Metric label="Visual match" value={`${result.quality.mean_ssim.toFixed(4)} avg · ${result.quality.minimum_ssim.toFixed(4)} lowest`} description="Closer to 1 is better." />
+              <Metric
+                label="Photo quality"
+                value={result.quality.threshold_pass ? "Passed" : "Needs review"}
+                description={result.quality.threshold_pass ? "Every rebuilt photo passed." : "Compare the photos before saving."}
+                tone={result.quality.threshold_pass ? "positive" : "neutral"}
+              />
             </div>
 
-            <div className="mt-5 grid gap-3 lg:grid-cols-2">
-              <div className="explanation-card">
+            <details className="explanation-details mt-4">
+              <summary>Technical details</summary>
+              <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                <div className="explanation-card">
                 <p className="font-semibold text-[#17211b]">What does SSIM mean?</p>
                 <p className="mt-2 text-sm leading-6 text-[#607066]">
                   SSIM (<strong className="text-[#35483b]">Structural Similarity Index</strong>) compares structure, contrast, and detail. 1.000 is a perfect measured match; higher is better.
                 </p>
                 <p className="mt-2 text-xs leading-5 text-[#738077]">Average covers the set; lowest flags the weakest photo. Always inspect the images.</p>
+                </div>
+                <div className="explanation-card">
+                  <p className="font-semibold text-[#17211b]">Quality measurements</p>
+                  <p className="mt-2 text-sm leading-6 text-[#607066]">
+                    <strong className="text-[#35483b]">{result.quality.mean_ssim.toFixed(4)}</strong> average · <strong className="text-[#35483b]">{result.quality.minimum_ssim.toFixed(4)}</strong> lowest
+                  </p>
+                  <p className="mt-2 text-xs leading-5 text-[#738077]">Targets: {result.quality.min_mean_threshold.toFixed(2)} average and {result.quality.min_per_frame_threshold.toFixed(2)} for every photo.</p>
+                </div>
               </div>
-              <div className="explanation-card">
-                <p className="font-semibold text-[#17211b]">Did the quality check pass?</p>
-                <p className="mt-2 text-sm leading-6 text-[#607066]">
-                  Targets: <strong className="text-[#35483b]">{result.quality.min_mean_threshold.toFixed(2)}</strong> average and <strong className="text-[#35483b]">{result.quality.min_per_frame_threshold.toFixed(2)}</strong> for every photo.
-                </p>
-                <p className={`mt-3 text-sm font-semibold ${result.quality.threshold_pass ? "text-[#215f36]" : "text-[#8b2f20]"}`}>
-                  {result.quality.threshold_pass ? "✓ This collection passed both checks." : "This collection did not pass both checks."}
-                </p>
-              </div>
-            </div>
-
-            <details className="explanation-details mt-4">
-              <summary>See collection and integrity details</summary>
               <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <DataTerm label="Storage approach" value={`${result.shared_frame_count} sharing space · ${result.fallback_frame_count} kept whole`} />
                 <DataTerm label="Photos rebuilt" value={`${result.reconstructed_frame_count}`} description="Photos successfully recreated from this collection." />
                 <DataTerm label="Files inside collection" value={`${result.package_contents.member_count}`} description="All images, change data, and instructions stored in the .photofold file." />
                 <DataTerm label="Changed areas stored" value={`${result.package_contents.patch_count}`} description="Small regions saved separately because they differ from the shared scene." />
                 <DataTerm label="Photos kept whole" value={`${result.package_contents.independent_source_count}`} description="Photos stored independently because sharing was not a safe fit." />
                 <DataTerm label="Integrity fingerprint" value={`${result.storage.package_sha256.slice(0, 12)}…`} description="A SHA-256 fingerprint used to confirm the downloaded file has not changed or become corrupted." />
               </dl>
+              <p className="mt-4 text-xs leading-5 text-[#738077]">The size comparison uses the exact files you uploaded. It does not compare every possible photo format or compression setting.</p>
+              {result.warnings.length > 0 && <ul className="mt-3 space-y-1 text-xs leading-5 text-[#738077]">{result.warnings.map((warning) => <li key={warning}>— {warning}</li>)}</ul>}
             </details>
           </>
         ) : result.error ? <ErrorPanel error={{ error: result.error }} nested /> : null}
@@ -650,7 +655,7 @@ function ResultsStep(props: ResultsStepProps) {
               <p className="eyebrow">Step 4 of 4 · Compare</p>
               <h2 id="viewer-heading" className="section-title">Compare photo {frame.index + 1} · {frame.original_filename}</h2>
               <p className="mt-1 text-sm text-[#607066]">
-                Visual match <strong className="text-[#35483b]">{frame.ssim?.toFixed(4)}</strong> · {frame.storage_mode === "independent_source" ? "Kept whole" : "Shares space"}{frame.storage_mode !== "independent_source" ? ` · ${frame.patch_count} changed area${frame.patch_count === 1 ? "" : "s"} preserved` : ""}
+                <strong className="text-[#35483b]">{frame.quality_threshold_pass ? "Quality passed" : "Needs review"}</strong> · {frame.storage_mode === "independent_source" ? "Kept whole" : "Shares space"}
               </p>
               {frame.fallback_reason && <p className="mt-2 text-sm text-[#8a5a20]">{friendlyFallbackReason(frame.fallback_reason)}</p>}
             </div>
@@ -720,7 +725,7 @@ function ResultsStep(props: ResultsStepProps) {
                 </>
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={`${base}/${props.viewMode}`} alt={`${props.viewMode} for ${frame.original_filename}`} />
+                <img className={props.viewMode === "difference" ? "difference-heatmap" : ""} src={`${base}/${props.viewMode}`} alt={`${props.viewMode} for ${frame.original_filename}`} />
               )}
             </div>
           </div>
@@ -737,18 +742,12 @@ function ResultsStep(props: ResultsStepProps) {
                 }}
               >
                 <span>Photo {item.index + 1}</span>
-                <strong>{item.storage_mode === "independent_source" ? "Kept whole" : "Shares space"} · match {item.ssim?.toFixed(4) ?? "—"}</strong>
+                <strong>{item.quality_threshold_pass ? "Quality passed" : "Needs review"}</strong>
               </button>
             ))}
           </div>
         </section>
       )}
-
-      <details className="explanation-details">
-        <summary>About this storage comparison and technical notes</summary>
-        <p className="mt-3 text-sm leading-6 text-[#607066]">The size comparison uses the exact files you uploaded. It tells you whether this collection is smaller than those files; it does not compare every possible photo format or compression setting during this quick interactive run.</p>
-        {result.warnings.length > 0 && <ul className="mt-3 space-y-1 text-sm leading-6 text-[#607066]">{result.warnings.map((warning) => <li key={warning}>— {warning}</li>)}</ul>}
-      </details>
     </div>
   );
 }
@@ -757,7 +756,7 @@ function WorkflowRail({ analysis, result, busy, uploadCount }: { analysis: Proto
   const steps = [
     { label: "Choose photos", detail: uploadCount ? `${uploadCount} selected` : "5–20 from one moment", state: busy === "analyzing" || analysis || result ? "complete" : "current" },
     { label: "Check the match", detail: analysis ? "Check complete" : busy === "analyzing" ? "Checking now" : "Find what can be shared", state: busy === "folding" || result ? "complete" : busy === "analyzing" || analysis ? "current" : "upcoming" },
-    { label: "Create collection", detail: result ? "Collection created" : busy === "folding" ? "Creating now" : "Rebuild and measure", state: result ? "complete" : busy === "folding" ? "current" : "upcoming" },
+    { label: "Create collection", detail: result ? "Collection created" : busy === "folding" ? "Folding now" : "Rebuild and measure", state: result ? "complete" : busy === "folding" ? "current" : "upcoming" },
     { label: "Compare & download", detail: result?.reconstructed_frame_count ? `${result.reconstructed_frame_count} photos ready` : "Review every photo", state: result ? "current" : "upcoming" },
   ];
   return (
@@ -778,6 +777,23 @@ function WorkflowRail({ analysis, result, busy, uploadCount }: { analysis: Proto
         <p className="mt-2">No account or cloud upload. Working files stay on this computer.</p>
       </div>
     </aside>
+  );
+}
+
+function LoadingLabel({ label }: { label: string }) {
+  return (
+    <span className="loading-label">
+      <span className="loading-spinner" aria-hidden="true" />
+      {label}
+    </span>
+  );
+}
+
+function LoadingStatus({ children }: { children: ReactNode }) {
+  return (
+    <p className="loading-status" role="status" aria-live="polite">
+      {children}
+    </p>
   );
 }
 
@@ -835,7 +851,7 @@ function ViewerGuide({ mode }: { mode: ViewMode }) {
   const content = mode === "difference"
     ? {
         title: "How to read the change heatmap",
-        body: "Dark means little change. Orange to white means larger differences worth checking; bright does not always mean damaged. Zoom and drag to inspect.",
+        body: "Purple shows smaller changes; orange to white shows larger ones. Colors are boosted so subtle differences are easier to spot. Zoom and drag to inspect.",
       }
     : mode === "compare"
       ? {
