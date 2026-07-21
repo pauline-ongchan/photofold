@@ -27,6 +27,10 @@ function formatBytesForTest(bytes: number): string {
   return `${value.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${unit}`;
 }
 
+function formatVisualMatchForTest(value: number): string {
+  return `${(Math.max(0, Math.min(1, value)) * 100).toFixed(1)}%`;
+}
+
 test("curated upload → analyze → fold → inspect → export → bundle", async ({ page }, testInfo) => {
   await page.goto("/");
   const input = page.locator('input[type="file"]');
@@ -95,6 +99,7 @@ test("curated upload → analyze → fold → inspect → export → bundle", as
   await expect(zoom).toHaveValue("1.25");
   await expect.poll(viewerFrame).toEqual(fittedFrame);
   await expect.poll(viewerOverflowIsHidden).toBe(true);
+  await expect.poll(() => viewerCanvas.evaluate((element) => getComputedStyle(element).transitionDuration)).toBe("0.22s");
   await expect.poll(() => viewerCanvas.evaluate((element) =>
     getComputedStyle(element).transform !== "none" && !getComputedStyle(element).transform.startsWith("matrix(1,"),
   )).toBe(true);
@@ -115,18 +120,21 @@ test("curated upload → analyze → fold → inspect → export → bundle", as
   await expect(zoom).toHaveValue("1");
 
   await page.getByRole("button", { name: "Change heatmap" }).click();
-  await expect(page.getByText("How to read the change heatmap")).toBeVisible();
+  await expect(page.getByText("What the change heatmap compares")).toBeVisible();
+  await expect(page.getByText(/compares the rebuilt photo with the original, pixel by pixel/)).toBeVisible();
+  await expect(page.getByText(/does not show what moved between burst photos/)).toBeVisible();
   const difference = page.getByRole("img", { name: "difference for frame-000.jpg" });
   await expect(difference).toBeVisible();
   await expect.poll(() => difference.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
   await expect.poll(viewerOverflowIsHidden).toBe(true);
 
   const frameSeven = page.getByRole("button", {
-    name: "Photo 7 · Shared storage",
+    name: `Photo 7 · Shared storage · ${formatVisualMatchForTest(result.frames[6].ssim)} match`,
   });
   await frameSeven.click();
   await expect(page.getByRole("heading", { name: "Photo 7 · frame-006.jpg" })).toBeVisible();
   await expect(page.getByText("Shared storage · Saves space")).toBeVisible();
+  await expect(page.getByText(`Visual match: ${formatVisualMatchForTest(result.frames[6].ssim)}`)).toBeVisible();
 
   const exportDownloadPromise = page.waitForEvent("download");
   await page.getByRole("link", { name: "Save this rebuilt photo" }).click();
@@ -179,10 +187,14 @@ test("native burst completes with explicit per-frame fallback", async ({ page })
   const fallback = result.frames.find((frame: { storage_mode: string }) => frame.storage_mode === "independent_source");
   expect(fallback).toBeTruthy();
   await page.getByRole("button", {
-    name: `Photo ${fallback.index + 1} · Stored whole${fallback.quality_threshold_pass === false ? " · Needs review" : ""}`,
+    name: `Photo ${fallback.index + 1} · Stored whole · ${formatVisualMatchForTest(fallback.ssim)} match${fallback.quality_threshold_pass === false ? " · Needs review" : ""}`,
   }).click();
   await expect(page.getByText("Stored whole · Protects quality")).toBeVisible();
   await expect(page.getByText(/stored independently because sharing the scene was not a safe fit/)).toBeVisible();
+  await expect(page.getByText(`Visual match: ${formatVisualMatchForTest(fallback.ssim)}`)).toBeVisible();
+  await expect(page.getByRole("group", { name: "Viewer mode" })).toHaveCount(0);
+  await expect(page.getByRole("img", { name: `Stored photo ${fallback.original_filename}` })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Save this photo" })).toBeVisible();
   await expect(page.getByText(/inlier ratio/i)).toHaveCount(0);
   await expect(page.getByText(/Contains everything needed to rebuild and export all photos/)).toBeVisible();
 });

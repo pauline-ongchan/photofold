@@ -232,13 +232,10 @@ describe("PhotoFold Gate 3 workflow", () => {
     expect(screen.queryByText("Quality passed")).not.toBeInTheDocument();
 
     const photoSelector = screen.getByLabelText("Photo selector");
-    expect(photoSelector).toContainElement(screen.getByRole("button", { name: "Photo 1 · Shared storage" }));
-    const storedWholeButton = screen.getByRole("button", { name: "Photo 5 · Stored whole" });
+    expect(photoSelector).toContainElement(screen.getByRole("button", { name: "Photo 1 · Shared storage · 90.0% match" }));
+    const storedWholeButton = screen.getByRole("button", { name: "Photo 5 · Stored whole · 86.0% match" });
     expect(photoSelector).toContainElement(storedWholeButton);
-    fireEvent.click(storedWholeButton);
-    expect(screen.getByRole("heading", { name: "Photo 5 · frame-4.jpg" })).toBeInTheDocument();
-    expect(screen.getByText("Stored whole · Protects quality")).toBeInTheDocument();
-    expect(screen.getByText(/stored independently because sharing the scene was not a safe fit/)).toBeInTheDocument();
+    expect(screen.getByText("Visual match: 88.0%")).toBeInTheDocument();
 
     const advancedDetails = screen.getByText("Advanced details").closest("details");
     expect(advancedDetails).not.toHaveAttribute("open");
@@ -259,15 +256,30 @@ describe("PhotoFold Gate 3 workflow", () => {
     Object.defineProperty(canvas, "clientHeight", { configurable: true, value: 450 });
     fireEvent.pointerDown(viewer, { pointerId: 1, clientX: 100, clientY: 100 });
     fireEvent.pointerMove(viewer, { pointerId: 1, clientX: 160, clientY: 140 });
-    expect(canvas.style.transform).toContain("translate(60px, 40px) scale(2)");
+    expect(canvas.style.transform).toContain("translate3d(60px, 40px, 0) scale(2)");
     fireEvent.pointerUp(viewer, { pointerId: 1, clientX: 160, clientY: 140 });
+    fireEvent.change(zoom, { target: { value: "2.25" } });
+    expect(canvas.style.transform).toContain("translate3d(60px, 40px, 0) scale(2.25)");
     fireEvent.click(screen.getByRole("button", { name: "Fit" }));
     expect(zoom).toHaveValue("1");
 
     fireEvent.click(screen.getByRole("button", { name: "Change heatmap" }));
-    expect(screen.getByText("How to read the change heatmap")).toBeInTheDocument();
-    expect(screen.getByText(/Colors are boosted so subtle differences are easier to spot/)).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: /difference for frame-4.jpg/i })).toBeInTheDocument();
+    expect(screen.getByText("What the change heatmap compares")).toBeInTheDocument();
+    expect(screen.getByText(/compares the rebuilt photo with the original, pixel by pixel/)).toBeInTheDocument();
+    expect(screen.getByText(/does not show what moved between burst photos/)).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /difference for frame-2.jpg/i })).toBeInTheDocument();
+
+    fireEvent.click(storedWholeButton);
+    expect(screen.getByRole("heading", { name: "Photo 5 · frame-4.jpg" })).toBeInTheDocument();
+    expect(screen.getByText("Stored whole · Protects quality")).toBeInTheDocument();
+    expect(screen.getByText(/stored independently because sharing the scene was not a safe fit/)).toBeInTheDocument();
+    expect(screen.getByText("Visual match: 86.0%")).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Viewer mode" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Original" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Rebuilt photo" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Change heatmap" })).not.toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Stored photo frame-4.jpg" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Save this photo" })).toBeInTheDocument();
   });
 
   it("uses neutral independent-only strategy language", async () => {

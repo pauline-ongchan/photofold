@@ -34,6 +34,11 @@ function formatPercent(value: number): string {
   return `${Math.abs(value).toFixed(1)}%`;
 }
 
+function formatVisualMatch(value: number | null | undefined): string {
+  if (value == null) return "Unavailable";
+  return `${(Math.max(0, Math.min(1, value)) * 100).toFixed(1)}%`;
+}
+
 function storageCopy(mode: FrameStorageMode) {
   return mode === "independent_source"
     ? {
@@ -534,6 +539,7 @@ function ResultsStep(props: ResultsStepProps) {
         ? "At least one photo missed the quality target. Compare it before downloading."
         : "PhotoFold could not finish. See the error below.";
   const selectedStorage = storageCopy(frame.storage_mode);
+  const selectedStoredWhole = frame.storage_mode === "independent_source";
   const savedStorage = result.storage?.is_smaller_than_originals && result.storage.bytes_saved > 0;
   const sizeResult = !result.storage
     ? "Size unavailable"
@@ -550,13 +556,18 @@ function ResultsStep(props: ResultsStepProps) {
   }
 
   function setViewerZoom(value: number) {
-    resetPan();
+    if (value <= 1) {
+      resetPan();
+      props.setZoom(1);
+      return;
+    }
+    setPan((current) => constrainPan(current.x, current.y, value));
     props.setZoom(value);
   }
 
-  function constrainPan(x: number, y: number) {
+  function constrainPan(x: number, y: number, zoom = props.zoom) {
     const canvas = canvasRef.current;
-    if (!canvas || props.zoom <= 1) return { x: 0, y: 0 };
+    if (!canvas || zoom <= 1) return { x: 0, y: 0 };
 
     const viewportWidth = canvas.clientWidth;
     const viewportHeight = canvas.clientHeight;
@@ -564,8 +575,8 @@ function ResultsStep(props: ResultsStepProps) {
     const viewportAspect = viewportWidth / viewportHeight;
     const fittedWidth = viewportAspect > imageAspect ? viewportHeight * imageAspect : viewportWidth;
     const fittedHeight = viewportAspect > imageAspect ? viewportHeight : viewportWidth / imageAspect;
-    const maxX = Math.max(0, (fittedWidth * props.zoom - viewportWidth) / 2);
-    const maxY = Math.max(0, (fittedHeight * props.zoom - viewportHeight) / 2);
+    const maxX = Math.max(0, (fittedWidth * zoom - viewportWidth) / 2);
+    const maxY = Math.max(0, (fittedHeight * zoom - viewportHeight) / 2);
 
     return {
       x: Math.max(-maxX, Math.min(maxX, x)),
@@ -618,7 +629,7 @@ function ResultsStep(props: ResultsStepProps) {
           {frame.reconstructed && (
             <div className="flex max-w-sm flex-col items-end gap-2">
               <div className="flex flex-wrap justify-end gap-2">
-                <a className="button-primary" href={`${base}/export`}>Save this rebuilt photo</a>
+                <a className="button-primary" href={`${base}/export`}>{selectedStoredWhole ? "Save this photo" : "Save this rebuilt photo"}</a>
                 <a className="button-secondary" href={`/api/prototype/runs/${runId}/bundle`}>Download collection</a>
               </div>
               <p className="text-right text-xs leading-5 text-[#738077]">Contains everything needed to rebuild and export all photos.</p>
@@ -634,13 +645,14 @@ function ResultsStep(props: ResultsStepProps) {
               {result.frames.map((item) => {
                 const itemStorage = storageCopy(item.storage_mode);
                 const needsReview = item.quality_threshold_pass === false;
+                const visualMatch = formatVisualMatch(item.ssim);
                 return (
                   <button
                     className={`frame-selector ${item.index === frame.index ? "frame-selector-active" : ""}`}
                     type="button"
                     key={item.index}
                     aria-pressed={item.index === frame.index}
-                    aria-label={`Photo ${item.index + 1} · ${itemStorage.cardLabel}${needsReview ? " · Needs review" : ""}`}
+                    aria-label={`Photo ${item.index + 1} · ${itemStorage.cardLabel} · ${visualMatch} match${needsReview ? " · Needs review" : ""}`}
                     onClick={() => {
                       resetPan();
                       props.setSelectedFrame(item.index);
@@ -648,6 +660,7 @@ function ResultsStep(props: ResultsStepProps) {
                   >
                     <span>Photo {item.index + 1}</span>
                     <strong>{itemStorage.cardLabel}</strong>
+                    <span className="frame-match">{visualMatch} match</span>
                     {needsReview && <em>Needs review</em>}
                   </button>
                 );
@@ -659,18 +672,21 @@ function ResultsStep(props: ResultsStepProps) {
               <h3 className="mt-1 text-xl font-semibold tracking-[-0.025em]">Photo {frame.index + 1} · {frame.original_filename}</h3>
               <p className="mt-3 font-semibold text-[#35483b]">{selectedStorage.headline}</p>
               <p className="mt-1 max-w-3xl text-sm leading-6 text-[#607066]">{selectedStorage.description}</p>
+              <p className="mt-2 text-xs font-semibold text-[#607066]">Visual match: {formatVisualMatch(frame.ssim)}</p>
               {frame.quality_threshold_pass === false && <p className="mt-2 text-sm font-semibold text-[#8b2f20]">Needs review · Compare this photo closely before saving.</p>}
             </div>
 
-            <div className="mt-5 flex flex-wrap gap-2" role="group" aria-label="Viewer mode">
-              {(["compare", "original", "reconstruction", "difference"] as ViewMode[]).map((mode) => (
-                <button className={`view-tab ${props.viewMode === mode ? "view-tab-active" : ""}`} type="button" key={mode} onClick={() => props.setViewMode(mode)}>
-                  {mode === "difference" ? "Change heatmap" : mode === "reconstruction" ? "Rebuilt photo" : mode[0].toUpperCase() + mode.slice(1)}
-                </button>
-              ))}
-            </div>
+            {!selectedStoredWhole && (
+              <div className="mt-5 flex flex-wrap gap-2" role="group" aria-label="Viewer mode">
+                {(["compare", "original", "reconstruction", "difference"] as ViewMode[]).map((mode) => (
+                  <button className={`view-tab ${props.viewMode === mode ? "view-tab-active" : ""}`} type="button" key={mode} onClick={() => props.setViewMode(mode)}>
+                    {mode === "difference" ? "Change heatmap" : mode === "reconstruction" ? "Rebuilt photo" : mode[0].toUpperCase() + mode.slice(1)}
+                  </button>
+                ))}
+              </div>
+            )}
 
-            <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-[#17211b]/10 pb-4">
+            <div className={`${selectedStoredWhole ? "mt-5" : "mt-4"} flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-[#17211b]/10 pb-4`}>
               <div className="flex items-center gap-3">
                 {props.zoom > 1 && (
                   <button className="view-reset-button" type="button" onClick={() => setViewerZoom(1)}>
@@ -682,7 +698,7 @@ function ResultsStep(props: ResultsStepProps) {
                   <input aria-label="Zoom" type="range" min="1" max="3" step="0.25" value={props.zoom} onChange={(event) => setViewerZoom(Number(event.target.value))} />
                 </label>
               </div>
-              {props.viewMode === "compare" && (
+              {!selectedStoredWhole && props.viewMode === "compare" && (
                 <label className="flex min-w-[min(100%,18rem)] flex-1 items-center gap-3 text-xs font-semibold text-[#607066]">
                   Original {props.comparison}%
                   <input className="min-w-0 flex-1" aria-label="Comparison position" type="range" min="0" max="100" value={props.comparison} onChange={(event) => props.setComparison(Number(event.target.value))} />
@@ -691,7 +707,7 @@ function ResultsStep(props: ResultsStepProps) {
               )}
             </div>
 
-            <ViewerGuide mode={props.viewMode} />
+            {!selectedStoredWhole && <ViewerGuide mode={props.viewMode} />}
 
             <div
               className={`viewer-stage mt-4 ${props.zoom > 1 ? "viewer-stage-pannable" : ""} ${panning ? "viewer-stage-panning" : ""}`}
@@ -705,9 +721,12 @@ function ResultsStep(props: ResultsStepProps) {
               <div
                 ref={canvasRef}
                 className={`viewer-canvas ${panning ? "viewer-canvas-panning" : ""}`}
-                style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${props.zoom})` }}
+                style={{ transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${props.zoom})` }}
               >
-                {props.viewMode === "compare" ? (
+                {selectedStoredWhole ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={`${base}/original`} alt={`Stored photo ${frame.original_filename}`} />
+                ) : props.viewMode === "compare" ? (
                   <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={`${base}/reconstruction`} alt={`Reconstruction of ${frame.original_filename}`} />
@@ -752,7 +771,7 @@ function ResultsStep(props: ResultsStepProps) {
             <div className="explanation-card">
               <p className="font-semibold text-[#17211b]">Visual match: {result.quality.threshold_pass ? "Meets quality target" : "Needs review"}</p>
               <p className="mt-2 text-sm leading-6 text-[#607066]">SSIM: <strong className="text-[#35483b]">{result.quality.mean_ssim.toFixed(4)}</strong> average · <strong className="text-[#35483b]">{result.quality.minimum_ssim.toFixed(4)}</strong> lowest</p>
-              <p className="mt-2 text-xs leading-5 text-[#738077]">SSIM compares structure, contrast, and detail. 1.000 is a perfect measured match; higher is better.</p>
+              <p className="mt-2 text-xs leading-5 text-[#738077]">SSIM compares structure, contrast, and detail. 1.000 is a perfect measured match; the photo-card percentage shows this same value as a percentage.</p>
             </div>
             <div className="explanation-card">
               <p className="font-semibold text-[#17211b]">Selected photo</p>
@@ -878,8 +897,8 @@ function ErrorPanel({ error, nested = false }: { error: ErrorEnvelope; nested?: 
 function ViewerGuide({ mode }: { mode: ViewMode }) {
   const content = mode === "difference"
     ? {
-        title: "How to read the change heatmap",
-        body: "Purple shows smaller changes; orange to white shows larger ones. Colors are boosted so subtle differences are easier to spot. Zoom and drag to inspect.",
+        title: "What the change heatmap compares",
+        body: "It compares the rebuilt photo with the original, pixel by pixel. Purple means they are very similar; orange to white marks larger color or brightness differences. It does not show what moved between burst photos.",
       }
     : mode === "compare"
       ? {
