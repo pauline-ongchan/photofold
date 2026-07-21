@@ -16,7 +16,9 @@ alignment:
   detector: orb
   estimator: ransac
   min_inlier_ratio: 0.80
-  max_median_reprojection_error: 2.0
+  reprojection_error_units: analysis_pixels
+  analysis_max_dimension: 800
+  max_median_reprojection_error_analysis_pixels: 2.0
 change_mask:
   pixel_threshold_sweep: [8, 12, 16, 24]
   dilation_radius_sweep: [2, 4, 8]
@@ -48,3 +50,4 @@ notes:
   - The independent control exhaustively tests every integer WebP quality from 1 through 100 and selects the smallest point with equal-or-better mean and minimum SSIM.
   - Visual review confirmed that the minimum-SSIM frame retains the complete scene without an obvious seam at normal size or full-resolution inspection; fine foliage and burst noise dominate the heatmap differences.
   - These thresholds apply only to hdrplus-static and are not general product guarantees.
+  - Alignment reprojection error is measured in analysis-space pixels on a copy whose longest dimension is at most 800 pixels; it is never scaled back to resolution-dependent source pixels.

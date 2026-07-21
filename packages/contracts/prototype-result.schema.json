@@ -47,6 +47,12 @@
           "title": "Frame Count",
           "type": "integer"
         },
+        "independent_source_count": {
+          "maximum": 20,
+          "minimum": 0,
+          "title": "Independent Source Count",
+          "type": "integer"
+        },
         "mask_count": {
           "minimum": 0,
           "title": "Mask Count",
@@ -79,6 +85,7 @@
         "patch_count",
         "mask_count",
         "metadata_count",
+        "independent_source_count",
         "member_payload_bytes"
       ],
       "title": "PackageContents",
@@ -154,6 +161,18 @@
           ],
           "default": null,
           "title": "Changed Region Percent"
+        },
+        "fallback_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fallback Reason"
         },
         "height": {
           "exclusiveMinimum": 0,
@@ -232,6 +251,15 @@
           "default": null,
           "title": "Ssim"
         },
+        "storage_mode": {
+          "enum": [
+            "shared_reference",
+            "shared_delta",
+            "independent_source"
+          ],
+          "title": "Storage Mode",
+          "type": "string"
+        },
         "width": {
           "exclusiveMinimum": 0,
           "title": "Width",
@@ -244,6 +272,7 @@
         "width",
         "height",
         "original_bytes",
+        "storage_mode",
         "reconstructed",
         "artifacts"
       ],
@@ -365,6 +394,12 @@
       ],
       "default": null
     },
+    "fallback_frame_count": {
+      "maximum": 20,
+      "minimum": 0,
+      "title": "Fallback Frame Count",
+      "type": "integer"
+    },
     "frames": {
       "items": {
         "$ref": "#/$defs/PrototypeFrameResult"
@@ -423,10 +458,16 @@
       "title": "Reference Frame Index"
     },
     "schema_version": {
-      "const": "1.0",
-      "default": "1.0",
+      "const": "1.1",
+      "default": "1.1",
       "title": "Schema Version",
       "type": "string"
+    },
+    "shared_frame_count": {
+      "maximum": 20,
+      "minimum": 0,
+      "title": "Shared Frame Count",
+      "type": "integer"
     },
     "status": {
       "enum": [
@@ -448,6 +489,15 @@
         }
       ]
     },
+    "strategy": {
+      "enum": [
+        "shared_scene",
+        "hybrid",
+        "independent_only"
+      ],
+      "title": "Strategy",
+      "type": "string"
+    },
     "warnings": {
       "items": {
         "type": "string"
@@ -459,6 +509,9 @@
   "required": [
     "completed_at",
     "status",
+    "strategy",
+    "shared_frame_count",
+    "fallback_frame_count",
     "reference_frame_index",
     "reconstructed_frame_count",
     "storage",

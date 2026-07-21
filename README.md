@@ -2,29 +2,32 @@
 
 PhotoFold is a hackathon prototype exploring whether groups of similar photos can be stored as one shared scene plus frame-specific differences while retaining every frame.
 
-## Current status: Phase 4P implemented; owner walkthrough pending
+## Current status: Phase 4P.1 generalized folding implemented; UI review passed, owner acceptance pending
 
 This repository implements the Gate 0 foundation, the CLI-only Gate 1 compression proof, the accepted Phase 1B multi-dataset validation experiment, and the automated Gate 3P local prototype:
 
 - a FastAPI `/v1/health` endpoint;
 - a CLI codec doctor and real-dataset validator;
-- a local Next.js upload → analyze → fold → inspect → export → bundle workflow;
+- a local Next.js upload → analyze → fold → inspect → export → archive workflow;
 - generated OpenAPI and TypeScript contracts;
 - pinned local dependencies and validation commands; and
 - four documented, checksum-verified real bursts: the original Gate 1 set and three canonical Phase 1B scenarios;
 - deterministic reference selection and ORB/RANSAC alignment;
-- a WebP base plus cropped target-space WebP patches and lossless PNG masks;
+- resolution-independent alignment error measured on the fixed analysis canvas;
+- deterministic best shared-group selection plus per-frame independent-source fallback;
+- a WebP base plus cropped target-space WebP patches and lossless PNG masks for shared frames;
+- exact uploaded JPEG/PNG/WebP payloads for independent frames, decoded and EXIF-normalized from the closed package;
 - a strict `.photofold` package validator and package-only decoder;
 - real archive-byte, RGB SSIM, difference-heatmap, and independent-WebP measurements; and
 - fixed-quality and exact quality-matched independent-WebP controls with per-frame RGB SSIM and PSNR;
 - deterministic all-dataset aggregation and recommendation rules; and
 - self-contained offline HTML experiment reports with artifact-bound human review records;
-- strict Pydantic/JSON Schema/TypeScript contracts for the private prototype bridge; and
+- strict generated Pydantic/JSON Schema/TypeScript contracts for the private prototype bridge and version 0.2 manifest; and
 - run-scoped uploads, fixed shell-free CLI arguments, one active fold, package-only reconstruction artifacts, and focused browser tests.
 
 The Phase 1B automated experiment passes for all three canonical datasets, and the project owner accepts the current reconstruction quality for the hackathon MVP. The final recommendation is `CONTINUE COMPRESSION-FIRST`. Phase 4P now supplies the local product flow without adding a reusable processing service. Runtime and implementation complexity remain documented MVP limitations: the current trade-off can be disproportionate for some datasets, and runtime, encoding efficiency, package overhead, and dataset selection require future optimization.
 
-For the controlled hackathon prototype, Phase 2 / Gate 2A pipeline hardening and Phase 3 / Gate 2B FastAPI processing routes remain explicitly deferred rather than completed. Phase 4P / Gate 3P is implemented and passes automated verification; the project-owner visual walkthrough remains pending. The production-oriented failure matrix, reusable API contract, persistence, concurrency, restart recovery, and TTL lifecycle remain documented future work.
+For the controlled hackathon prototype, Phase 2 / Gate 2A pipeline hardening and Phase 3 / Gate 2B FastAPI processing routes remain explicitly deferred rather than completed. Phase 4P.1 keeps every successfully validated set foldable by selecting `shared_scene`, `hybrid`, or `independent_only` without relaxing measured alignment requirements. The implementation-agent UI visual review passed on the native `static-handheld` workflow; project-owner functional acceptance remains pending because the measured run ends honestly as `failed_quality`. The production-oriented failure matrix, reusable API contract, persistence, concurrency, restart recovery, and TTL lifecycle remain documented future work.
 
 ## Prerequisites
 
@@ -161,7 +164,17 @@ npm exec --workspace apps/web playwright install chromium
 make verify-gate3
 ```
 
-The command checks the processor, generated contracts, bridge and UI tests, production build, and one real Chromium workflow. The verified seven-frame run measured 4,408,395 uploaded bytes, a 675,057-byte package, 3,733,338 bytes saved (84.6870%), mean SSIM 0.851131, and minimum SSIM 0.826471. These values came from `artifacts/gate3/latest/result.json`; the UI does not hard-code them.
+The command checks the processor, generated contracts, bridge and UI tests, production build, and two real Chromium workflows: the normal seven-frame shared burst and the native-resolution fallback burst. It does not rerun the multi-hour q1–q100 research sweeps.
+
+The Phase 4P.1 selected-treatment re-evaluation measured:
+
+| Dataset | Strategy | Shared / fallback | Alignment error range | Package / originals | Mean / minimum SSIM | Terminal status |
+|---|---|---:|---:|---:|---:|---|
+| `static-handheld` | `hybrid` | 13 / 2 | 0.692620–1.027088 analysis px | 13,663,060 / 46,659,071 bytes | 0.783225 / 0.715211 | `failed_quality` |
+| `moving-subject` | `hybrid` | 10 / 3 | 0.862348–1.407737 analysis px | 15,901,130 / 25,331,644 bytes | 0.887196 / 0.824598 | `complete` |
+| `camera-motion-or-lighting` | `hybrid` | 10 / 4 | 0.638211–0.922210 analysis px | 11,001,509 / 26,301,637 bytes | 0.850882 / 0.675281 | `failed_quality` |
+
+Every listed archive passed closed-package validation and reconstructed every frame. Independent members scored exactly 1.0 SSIM against their normalized source pixels. The two `failed_quality` outcomes are intentionally retained because the current 0.85 mean/0.82 per-frame thresholds were selected for `hdrplus-static`, not generalized or bypassed for these native datasets. Storage is still reported from real closed archives, and no positive savings claim is made for a non-`complete` terminal result.
 
 Expected evidence under `artifacts/gate3/latest/` is:
 
@@ -176,7 +189,7 @@ For the project-owner walkthrough:
 make human-verify-gate3 DATASET=data/real-bursts/static-handheld
 ```
 
-Open <http://127.0.0.1:3000>, upload the dataset files, and complete upload → analyze → fold → inspect → export → bundle. The interactive path applies the selected treatment once and does not rerun the multi-hour independent-WebP research sweep. Run `make clean-gate3` to remove all local Gate 3P runs and published evidence.
+Open <http://127.0.0.1:3000>, upload the dataset files, and complete upload → analyze → fold → inspect → **Export selected photo** → **Download PhotoFold archive**. `static-handheld` must show `13` shared and `2` fallback frames with their measured low-inlier reasons, then reconstruct all 15 frames and retain its honest `failed_quality` result. Because that native run does not pass the currently recorded quality gate, functional project-owner acceptance must remain pending unless a later measured and reviewed quality decision changes the outcome. Run `make clean-gate3` to remove all local Gate 3P runs and published evidence.
 
 ## Manual development servers
 

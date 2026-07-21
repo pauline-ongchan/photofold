@@ -8,9 +8,11 @@
     "./prototype-analysis": "./src/prototype-analysis.ts",
     "./prototype-result": "./src/prototype-result.ts",
     "./prototype-error": "./src/prototype-error.ts",
+    "./photofold-manifest": "./src/photofold-manifest.ts",
     "./schemas/prototype-analysis": "./prototype-analysis.schema.json",
     "./schemas/prototype-result": "./prototype-result.schema.json",
-    "./schemas/prototype-error": "./prototype-error.schema.json"
+    "./schemas/prototype-error": "./prototype-error.schema.json",
+    "./schemas/photofold-manifest": "./photofold-manifest.schema.json"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"

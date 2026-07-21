@@ -300,7 +300,7 @@ function UploadStep({
       <div className="panel-heading">
         <div>
           <p className="eyebrow">01 · Choose</p>
-          <h2 id="upload-heading" className="section-title">A short burst, one shared scene</h2>
+          <h2 id="upload-heading" className="section-title">A short photo set</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#607066]">
             Choose 5–20 photos taken at approximately the same moment and from approximately the same position.
           </p>
@@ -324,7 +324,7 @@ function UploadStep({
       >
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#dfe9df] text-2xl">＋</div>
         <p className="mt-4 font-semibold">Drop the moment here</p>
-        <p className="mt-1 text-sm text-[#607066]">JPEG, PNG, or WebP · matching normalized dimensions</p>
+        <p className="mt-1 text-sm text-[#607066]">JPEG, PNG, or WebP · mixed dimensions use safe independent storage</p>
         <button className="button-secondary mt-5" type="button" onClick={() => inputRef.current?.click()}>
           Choose photos
         </button>
@@ -376,11 +376,19 @@ function UploadStep({
 
 function AnalysisStep({ analysis, busy, onFold }: { analysis: PrototypeAnalysis; busy: boolean; onFold: () => void }) {
   const reference = analysis.source_frames.find((frame) => frame.index === analysis.reference_frame_index);
-  const nonIdentity = analysis.alignment.filter((item) => item.type !== "identity");
+  const nonIdentity = analysis.alignment.filter(
+    (item) => item.type !== null && item.type !== "identity" && item.inlier_ratio !== null,
+  );
   const meanInlier = nonIdentity.length
-    ? nonIdentity.reduce((sum, item) => sum + item.inlier_ratio, 0) / nonIdentity.length
+    ? nonIdentity.reduce((sum, item) => sum + (item.inlier_ratio ?? 0), 0) / nonIdentity.length
     : 1;
-  const minimumOverlap = nonIdentity.length ? Math.min(...nonIdentity.map((item) => item.valid_overlap)) : 1;
+  const measuredOverlap = nonIdentity.flatMap((item) => item.valid_overlap == null ? [] : [item.valid_overlap]);
+  const minimumOverlap = measuredOverlap.length ? Math.min(...measuredOverlap) : 1;
+  const strategyMessage = analysis.strategy === "shared_scene"
+    ? `${analysis.shared_frame_count} frames can share scene data.`
+    : analysis.strategy === "hybrid"
+      ? `${analysis.shared_frame_count} frames can share scene data; ${analysis.fallback_frame_count} will be stored independently.`
+      : "These photos will use independent storage.";
   return (
     <section className="panel" aria-labelledby="analysis-heading">
       <div className="panel-heading">
@@ -388,14 +396,18 @@ function AnalysisStep({ analysis, busy, onFold }: { analysis: PrototypeAnalysis;
           <p className="eyebrow">02 · Confirm</p>
           <h2 id="analysis-heading" className="section-title">Processor analysis</h2>
         </div>
-        <StatusBadge status={analysis.suitability} />
+        <StatusBadge status={analysis.strategy} label="Ready to fold" />
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <p className="mb-5 rounded-2xl bg-[#eef2e9] px-5 py-4 font-semibold">{strategyMessage}</p>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Metric label="Accepted photos" value={`${analysis.source_frames.length}`} />
+        <Metric label="Shared frames" value={`${analysis.shared_frame_count}`} />
+        <Metric label="Fallback frames" value={`${analysis.fallback_frame_count}`} />
         <Metric label="Exact source total" value={formatBytes(analysis.original_total_bytes)} />
-        <Metric label="Normalized canvas" value={`${analysis.normalized_dimensions.width}×${analysis.normalized_dimensions.height}`} />
-        <Metric label="Reference frame" value={reference ? `${reference.index + 1} · ${reference.original_filename}` : "Unavailable"} />
+        <Metric label="Normalized canvas" value={analysis.normalized_dimensions ? `${analysis.normalized_dimensions.width}×${analysis.normalized_dimensions.height}` : "Per frame"} />
+        <Metric label="Reference frame" value={reference ? `${reference.index + 1} · ${reference.original_filename}` : "No shared base"} />
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
@@ -405,7 +417,8 @@ function AnalysisStep({ analysis, busy, onFold }: { analysis: PrototypeAnalysis;
             <DataTerm label="Reference score" value={analysis.reference_score?.toFixed(3) ?? "Unavailable"} />
             <DataTerm label="Mean inlier ratio" value={`${(meanInlier * 100).toFixed(1)}%`} />
             <DataTerm label="Minimum overlap" value={`${(minimumOverlap * 100).toFixed(1)}%`} />
-            <DataTerm label="Transforms" value={`${analysis.alignment.length} recorded`} />
+            <DataTerm label="Error threshold" value={`${analysis.alignment_measurement.max_median_reprojection_error.toFixed(2)} analysis px`} />
+            <DataTerm label="Analysis canvas" value={`≤ ${analysis.alignment_measurement.analysis_max_dimension}px`} />
           </dl>
         </div>
         <div className="rounded-2xl border border-dashed border-[#17211b]/20 p-5">
@@ -417,6 +430,29 @@ function AnalysisStep({ analysis, busy, onFold }: { analysis: PrototypeAnalysis;
       </div>
 
       <div className="mt-5 rounded-2xl border border-[#17211b]/10 p-5">
+        <p className="font-semibold">Per-frame storage</p>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {analysis.source_frames.map((source) => {
+            const disposition = analysis.frame_dispositions[source.index];
+            const fallback = disposition.storage_mode === "independent_source";
+            return (
+              <div className="rounded-xl bg-[#f7f5ef] p-3 text-sm" key={source.index}>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="truncate font-medium">{source.index + 1} · {source.original_filename}</span>
+                  <span className={`status-pill ${fallback ? "status-warning" : "status-positive"}`}>
+                    {fallback ? "Fallback" : "Shared"}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-[#607066]">
+                  {fallback ? disposition.fallback_reason : disposition.storage_mode.replaceAll("_", " ")} · {source.width}×{source.height}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="mt-5 rounded-2xl border border-[#17211b]/10 p-5">
         <p className="font-semibold">Why this result</p>
         <ul className="mt-2 space-y-1 text-sm leading-6 text-[#607066]">
           {analysis.reasons.map((reason) => <li key={reason}>— {reason}</li>)}
@@ -424,7 +460,7 @@ function AnalysisStep({ analysis, busy, onFold }: { analysis: PrototypeAnalysis;
       </div>
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-[#17211b]/10 pt-5">
-        <p className="max-w-xl text-sm text-[#607066]">Fold reuses these exact transforms and source checksums. No research sweep or network call runs here.</p>
+        <p className="max-w-xl text-sm text-[#607066]">Fold reuses this evidence and the exact source checksums. Independent fallback may reduce or eliminate savings.</p>
         <button className="button-primary" disabled={analysis.status !== "analyzed_foldable" || busy} type="button" onClick={onFold}>
           {busy ? "Folding with the real processor…" : "Fold this moment"}
         </button>
@@ -472,9 +508,12 @@ function ResultsStep(props: ResultsStepProps) {
 
         {result.storage && result.quality && result.package_contents ? (
           <>
+            <p className="mb-5 text-sm text-[#607066]">
+              Strategy: <strong className="text-[#17211b]">{result.strategy.replaceAll("_", " ")}</strong> · {result.shared_frame_count} shared · {result.fallback_frame_count} fallback
+            </p>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <Metric label="Uploaded originals" value={formatBytes(result.storage.original_total_bytes)} />
-              <Metric label="PhotoFold bundle" value={formatBytes(result.storage.package_total_bytes)} />
+              <Metric label="PhotoFold archive" value={formatBytes(result.storage.package_total_bytes)} />
               <Metric
                 label={successful ? "Saved vs uploads" : "Difference vs uploads"}
                 value={successful ? `${formatBytes(result.storage.bytes_saved)} · ${formatPercent(result.storage.percent_saved)}` : `${formatBytes(Math.abs(result.storage.byte_delta))} ${result.storage.byte_delta < 0 ? "larger" : "smaller"}`}
@@ -486,6 +525,7 @@ function ResultsStep(props: ResultsStepProps) {
               <span className="data-chip">{result.reconstructed_frame_count} reconstructions</span>
               <span className="data-chip">{result.package_contents.member_count} package members</span>
               <span className="data-chip">{result.package_contents.patch_count} change patches</span>
+              <span className="data-chip">{result.package_contents.independent_source_count} independent sources</span>
               <span className="data-chip">SHA-256 {result.storage.package_sha256.slice(0, 12)}…</span>
             </div>
           </>
@@ -498,13 +538,17 @@ function ResultsStep(props: ResultsStepProps) {
             <div>
               <p className="eyebrow">04 · Inspect</p>
               <h2 id="viewer-heading" className="section-title">Frame {frame.index + 1} · {frame.original_filename}</h2>
-              <p className="mt-1 font-mono text-xs text-[#607066]">SSIM {frame.ssim?.toFixed(6)} · {frame.patch_count} patches</p>
+              <p className="mt-1 font-mono text-xs text-[#607066]">
+                SSIM {frame.ssim?.toFixed(6)} · {frame.storage_mode.replaceAll("_", " ")}{frame.storage_mode !== "independent_source" ? ` · ${frame.patch_count} patches` : ""}
+              </p>
+              {frame.fallback_reason && <p className="mt-2 text-sm text-[#8a5a20]">Fallback: {frame.fallback_reason}</p>}
             </div>
             <div className="flex flex-wrap gap-2">
-              <a className="button-secondary" href={`${base}/export`}>Export WebP</a>
-              <a className="button-primary" href={`/api/prototype/runs/${runId}/bundle`}>Download .photofold</a>
+              <a className="button-primary" href={`${base}/export`}>Export selected photo</a>
+              <a className="button-secondary" href={`/api/prototype/runs/${runId}/bundle`}>Download PhotoFold archive</a>
             </div>
           </div>
+          <p className="mb-4 text-xs text-[#607066]">Requires PhotoFold to reconstruct the complete set.</p>
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#17211b]/10 pb-4">
             <div className="flex flex-wrap gap-2" role="group" aria-label="Viewer mode">
@@ -556,7 +600,7 @@ function ResultsStep(props: ResultsStepProps) {
                 onClick={() => props.setSelectedFrame(item.index)}
               >
                 <span>Frame {item.index + 1}</span>
-                <strong>{item.ssim?.toFixed(4) ?? "—"}</strong>
+                <strong>{item.storage_mode === "independent_source" ? "Fallback" : "Shared"} · {item.ssim?.toFixed(4) ?? "—"}</strong>
               </button>
             ))}
           </div>
@@ -575,7 +619,7 @@ function ResultsStep(props: ResultsStepProps) {
 function WorkflowRail({ analysis, result, busy, uploadCount }: { analysis: PrototypeAnalysis | null; result: PrototypeResult | null; busy: "analyzing" | "folding" | null; uploadCount: number }) {
   const steps = [
     { label: "Choose", detail: uploadCount ? `${uploadCount} selected` : "5–20 photos", active: !analysis },
-    { label: "Analyze", detail: analysis ? analysis.suitability.replaceAll("_", " ") : busy === "analyzing" ? "running now" : "processor validation", active: Boolean(busy === "analyzing" || (analysis && !result)) },
+    { label: "Analyze", detail: analysis ? analysis.strategy.replaceAll("_", " ") : busy === "analyzing" ? "running now" : "processor validation", active: Boolean(busy === "analyzing" || (analysis && !result)) },
     { label: "Fold", detail: result ? result.status.replaceAll("_", " ") : busy === "folding" ? "running now" : "single real treatment", active: Boolean(busy === "folding" || result) },
     { label: "Inspect", detail: result?.reconstructed_frame_count ? `${result.reconstructed_frame_count} frames ready` : "compare and export", active: Boolean(result) },
   ];
@@ -606,10 +650,10 @@ function DataTerm({ label, value }: { label: string; value: string }) {
   return <div><dt className="text-xs text-[#738077]">{label}</dt><dd className="mt-1 font-semibold">{value}</dd></div>;
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const positive = status === "safe_to_fold" || status === "complete";
-  const warning = status === "complete_no_savings" || status === "failed_quality";
-  return <span className={`status-pill ${positive ? "status-positive" : warning ? "status-warning" : "status-negative"}`}>{status.replaceAll("_", " ")}</span>;
+function StatusBadge({ status, label }: { status: string; label?: string }) {
+  const positive = status === "safe_to_fold" || status === "shared_scene" || status === "complete";
+  const warning = status === "hybrid" || status === "independent_only" || status === "complete_no_savings" || status === "failed_quality";
+  return <span className={`status-pill ${positive ? "status-positive" : warning ? "status-warning" : "status-negative"}`}>{label ?? status.replaceAll("_", " ")}</span>;
 }
 
 function ErrorPanel({ error, nested = false }: { error: ErrorEnvelope; nested?: boolean }) {

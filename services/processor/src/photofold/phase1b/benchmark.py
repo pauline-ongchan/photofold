@@ -438,7 +438,7 @@ def run_phase1b_dataset(
     alignment_threshold_pass = all(
         transform["inlier_ratio"] >= float(config["alignment"]["min_inlier_ratio"])
         and transform["median_reprojection_error"]
-        <= float(config["alignment"]["max_median_reprojection_error"])
+        <= float(config["alignment"]["max_median_reprojection_error_analysis_pixels"])
         for transform in alignment["transforms"]
     )
     full_curve_pass = list(matched_qualities) == list(MATCHED_QUALITIES)

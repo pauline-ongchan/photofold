@@ -51,7 +51,23 @@ if (prototype.status !== 0) {
   process.exit(prototype.status ?? 1);
 }
 
-for (const name of ["prototype-analysis", "prototype-result", "prototype-error"]) {
+const photofold = spawnSync(
+  ".venv/bin/python",
+  [
+    "-m",
+    "photofold.cli",
+    "export-photofold-schema",
+    "--output",
+    "packages/contracts/photofold-manifest.schema.json",
+  ],
+  { stdio: "inherit" },
+);
+
+if (photofold.status !== 0) {
+  process.exit(photofold.status ?? 1);
+}
+
+for (const name of ["prototype-analysis", "prototype-result", "prototype-error", "photofold-manifest"]) {
   const types = spawnSync(
     "node_modules/.bin/json2ts",
     [

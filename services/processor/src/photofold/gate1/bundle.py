@@ -6,12 +6,13 @@ import json
 import zipfile
 from collections import OrderedDict
 from datetime import UTC, datetime
+from io import BytesIO
 from pathlib import Path, PurePosixPath
 from typing import Any
 
 import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps, UnidentifiedImageError
 from pydantic import ValidationError
 
 from photofold.gate1.alignment import warp_reference
@@ -27,6 +28,8 @@ from photofold.gate1.models import (
     AssetRecord,
     BaseRecord,
     FrameRecord,
+    IndependentSourceRecord,
+    NormalizedDimensions,
     PatchRecord,
     PhotoFoldManifest,
     TransformRecord,
@@ -172,56 +175,135 @@ def _encode_patches(
 def build_package(
     images: list[np.ndarray],
     filenames: list[str],
-    reference_index: int,
-    transforms: list[dict[str, Any]],
+    reference_index: int | None,
+    transforms: list[dict[str, Any] | None],
     parameters: dict[str, int],
     analysis: dict[str, Any],
     original_total_bytes: int,
     output_path: Path,
+    storage_dispositions: list[dict[str, Any]] | None = None,
+    source_payloads: list[bytes | None] | None = None,
+    source_formats: list[str | None] | None = None,
+    alignment_error_threshold: float | None = None,
 ) -> dict[str, Any]:
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    height, width = images[0].shape[:2]
+    if storage_dispositions is None:
+        storage_dispositions = [
+            {
+                "frame_index": index,
+                "storage_mode": (
+                    "shared_reference" if index == reference_index else "shared_delta"
+                ),
+                "fallback_reason": None,
+            }
+            for index in range(len(images))
+        ]
+    if [item["frame_index"] for item in storage_dispositions] != list(range(len(images))):
+        raise ValueError("Storage dispositions must preserve contiguous source order")
+    storage_modes = [item["storage_mode"] for item in storage_dispositions]
+    shared_indices = [
+        index for index, mode in enumerate(storage_modes) if mode != "independent_source"
+    ]
+    if bool(shared_indices) != (reference_index is not None):
+        raise ValueError("Shared storage and reference selection disagree")
+    if shared_indices and reference_index not in shared_indices:
+        raise ValueError("The selected reference is not in the shared group")
+    if not shared_indices and any(mode != "independent_source" for mode in storage_modes):
+        raise ValueError("Independent-only packages cannot contain shared storage modes")
+    fallback_indices = [
+        index for index, mode in enumerate(storage_modes) if mode == "independent_source"
+    ]
+    if fallback_indices and (
+        source_payloads is None
+        or source_formats is None
+        or len(source_payloads) != len(images)
+        or len(source_formats) != len(images)
+    ):
+        raise ValueError("Independent fallback requires every exact source payload and format")
+
     assets: OrderedDict[str, bytes] = OrderedDict()
-    base_payload = encode_webp(images[reference_index], parameters["base_quality"])
-    assets["base.webp"] = base_payload
-    decoded_base = decode_rgb(base_payload)
+    decoded_base: np.ndarray | None = None
+    base_record: BaseRecord | None = None
+    if reference_index is not None:
+        base_height, base_width = images[reference_index].shape[:2]
+        base_payload = encode_webp(images[reference_index], parameters["base_quality"])
+        assets["base.webp"] = base_payload
+        decoded_base = decode_rgb(base_payload)
+        base_record = BaseRecord(
+            width=base_width,
+            height=base_height,
+            quality=parameters["base_quality"],
+        )
 
     frame_records: list[FrameRecord] = []
     debug_masks: list[np.ndarray] = []
     region_metrics: list[dict[str, float | int]] = []
     for frame_index, target in enumerate(images):
-        transform = transforms[frame_index]
-        matrix = np.asarray(transform["matrix"], dtype=np.float64)
-        transform_record = TransformRecord(
-            type=transform["type"],
-            reference_to_target=matrix.reshape(-1).tolist(),
-            inlier_count=transform["inlier_count"],
-            inlier_ratio=transform["inlier_ratio"],
-            median_reprojection_error=transform["median_reprojection_error"],
-            valid_overlap=transform["valid_overlap"],
-        )
-        if frame_index == reference_index:
+        height, width = target.shape[:2]
+        storage_mode = storage_modes[frame_index]
+        transform = transforms[frame_index] if frame_index < len(transforms) else None
+        transform_record: TransformRecord | None = None
+        source_record: IndependentSourceRecord | None = None
+        if storage_mode == "independent_source":
+            if source_payloads is None or source_formats is None:
+                raise ValueError("Independent fallback source payloads are unavailable")
+            source_payload = source_payloads[frame_index]
+            source_format = source_formats[frame_index]
+            if source_payload is None or source_format not in {"JPEG", "PNG", "WEBP"}:
+                raise ValueError(f"Independent fallback source {frame_index} is invalid")
+            extension = {"JPEG": "jpg", "PNG": "png", "WEBP": "webp"}[source_format]
+            source_path = f"frames/{frame_index:03d}/source.{extension}"
+            assets[source_path] = source_payload
+            source_record = IndependentSourceRecord(
+                path=source_path,
+                decoded_format=source_format,
+            )
             patches: list[PatchRecord] = []
             applied_mask = np.zeros((height, width), dtype=np.uint8)
-            valid = np.full((height, width), 255, dtype=np.uint8)
+            valid = np.zeros((height, width), dtype=np.uint8)
         else:
-            warped_base, valid = warp_reference(decoded_base, matrix, width, height)
-            candidate_mask = _changed_mask(target, warped_base, valid, parameters)
-            patches, patch_assets, applied_mask = _encode_patches(
-                frame_index,
-                target,
-                candidate_mask,
-                parameters,
+            if transform is None or decoded_base is None:
+                raise ValueError(f"Shared frame {frame_index} has no usable transform or base")
+            matrix = np.asarray(transform["matrix"], dtype=np.float64)
+            transform_record = TransformRecord(
+                type=transform["type"],
+                reference_to_target=matrix.reshape(-1).tolist(),
+                inlier_count=transform["inlier_count"],
+                inlier_ratio=transform["inlier_ratio"],
+                median_reprojection_error=transform["median_reprojection_error"],
+                reprojection_error_units=transform.get(
+                    "reprojection_error_units", "analysis_pixels"
+                ),
+                reprojection_error_threshold=alignment_error_threshold,
+                valid_overlap=transform["valid_overlap"],
             )
-            assets.update(patch_assets)
+            if storage_mode == "shared_reference":
+                patches = []
+                applied_mask = np.zeros((height, width), dtype=np.uint8)
+                valid = np.full((height, width), 255, dtype=np.uint8)
+            else:
+                warped_base, valid = warp_reference(decoded_base, matrix, width, height)
+                candidate_mask = _changed_mask(target, warped_base, valid, parameters)
+                patches, patch_assets, applied_mask = _encode_patches(
+                    frame_index,
+                    target,
+                    candidate_mask,
+                    parameters,
+                )
+                assets.update(patch_assets)
         debug_masks.append(applied_mask)
         changed_pixels = int(np.count_nonzero(applied_mask))
         shared_pixels = int(np.count_nonzero((valid > 0) & (applied_mask == 0)))
         region_metrics.append(
             {
                 "frame_index": frame_index,
+                "storage_mode": storage_mode,
                 "patch_count": len(patches),
-                "changed_region_percent": changed_pixels / applied_mask.size * 100,
+                "changed_region_percent": (
+                    changed_pixels / applied_mask.size * 100
+                    if storage_mode != "independent_source"
+                    else None
+                ),
                 "shared_region_percent": shared_pixels / applied_mask.size * 100,
             }
         )
@@ -230,7 +312,10 @@ def build_package(
             original_filename=filenames[frame_index],
             output_width=width,
             output_height=height,
+            normalized_dimensions=NormalizedDimensions(width=width, height=height),
+            storage_mode=storage_mode,
             transform=transform_record,
+            independent_source=source_record,
             patches=patches,
         )
         frame_records.append(frame)
@@ -244,6 +329,8 @@ def build_package(
             "schema_version": "0.1",
             "original_total_bytes": original_total_bytes,
             "parameters": parameters,
+            "strategy": analysis.get("strategy"),
+            "storage_dispositions": storage_dispositions,
             "region_metrics": region_metrics,
             "notes": [
                 "The closed archive size is intentionally external to avoid circular measurement.",
@@ -258,11 +345,31 @@ def build_package(
         AssetRecord(path=path, bytes=len(payload), sha256=sha256_bytes(payload))
         for path, payload in assets.items()
     ]
+    shared_count = len(shared_indices)
+    fallback_count = len(fallback_indices)
+    strategy = (
+        "independent_only"
+        if shared_count == 0
+        else "shared_scene"
+        if fallback_count == 0
+        else "hybrid"
+    )
+    required_codecs: set[str] = set()
+    if base_record is not None:
+        required_codecs.add("webp")
+    for frame in frame_records:
+        if frame.patches:
+            required_codecs.update(("webp", "png"))
+        if frame.independent_source is not None:
+            required_codecs.add(frame.independent_source.decoded_format.lower())
     manifest = PhotoFoldManifest(
         created_at=datetime.now(UTC).isoformat(),
+        strategy=strategy,
+        shared_frame_count=shared_count,
+        fallback_frame_count=fallback_count,
         reference_frame_index=reference_index,
-        required_codecs=["webp", "png"],
-        base=BaseRecord(width=width, height=height, quality=parameters["base_quality"]),
+        required_codecs=sorted(required_codecs),
+        base=base_record,
         frames=frame_records,
         assets=inventory,
         analysis_path="metadata/analysis.json",
@@ -282,6 +389,89 @@ def build_package(
         "debug_masks": debug_masks,
         "region_metrics": region_metrics,
     }
+
+
+def _legacy_frame_data(value: dict[str, Any], reference_index: int) -> dict[str, Any]:
+    migrated = dict(value)
+    migrated["normalized_dimensions"] = {
+        "width": migrated["output_width"],
+        "height": migrated["output_height"],
+    }
+    migrated["storage_mode"] = (
+        "shared_reference" if migrated["index"] == reference_index else "shared_delta"
+    )
+    migrated["independent_source"] = None
+    transform = dict(migrated["transform"])
+    transform["reprojection_error_units"] = "legacy_full_resolution_pixels"
+    transform["reprojection_error_threshold"] = None
+    migrated["transform"] = transform
+    return migrated
+
+
+def _migrate_legacy_manifest(value: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+    if value.get("version") != "0.1":
+        return value, False
+    migrated = dict(value)
+    reference_index = int(migrated["reference_frame_index"])
+    frames = [
+        _legacy_frame_data(dict(frame), reference_index) for frame in migrated["frames"]
+    ]
+    required_codecs = {"webp"}
+    if any(frame["patches"] for frame in frames):
+        required_codecs.add("png")
+    migrated.update(
+        {
+            "version": "0.2",
+            "strategy": "shared_scene",
+            "shared_frame_count": len(frames),
+            "fallback_frame_count": 0,
+            "required_codecs": sorted(required_codecs),
+            "frames": frames,
+        }
+    )
+    return migrated, True
+
+
+def _decode_independent_source(
+    frame: FrameRecord,
+    payloads: dict[str, bytes],
+) -> np.ndarray:
+    source = frame.independent_source
+    if source is None:
+        raise PackageValidationError(f"Independent frame {frame.index} has no source member")
+    if (
+        Image.MAX_IMAGE_PIXELS is not None
+        and frame.output_width * frame.output_height > Image.MAX_IMAGE_PIXELS
+    ):
+        raise PackageValidationError(
+            f"Independent source exceeds the safe decoded pixel limit: frame {frame.index}"
+        )
+    try:
+        with Image.open(BytesIO(payloads[source.path])) as image:
+            if image.format != source.decoded_format:
+                raise PackageValidationError(
+                    f"Independent source format disagrees with frame {frame.index}"
+                )
+            normalized = ImageOps.exif_transpose(image)
+            normalized.load()
+            if (
+                "A" in normalized.getbands() or "transparency" in normalized.info
+            ) and normalized.convert("RGBA").getchannel("A").getextrema()[0] < 255:
+                raise PackageValidationError(
+                    f"Independent source transparency is unsupported: frame {frame.index}"
+                )
+            reconstruction = np.asarray(normalized.convert("RGB"), dtype=np.uint8).copy()
+    except PackageValidationError:
+        raise
+    except (Image.DecompressionBombError, UnidentifiedImageError, OSError) as error:
+        raise PackageValidationError(
+            f"Independent source could not be decoded safely: frame {frame.index}"
+        ) from error
+    if reconstruction.shape[:2] != (frame.output_height, frame.output_width):
+        raise PackageValidationError(
+            f"Independent source dimensions disagree with frame {frame.index}"
+        )
+    return reconstruction
 
 
 def _read_package(
@@ -319,13 +509,31 @@ def _read_package(
         raise PackageValidationError(f"Invalid ZIP container: {error}") from error
 
     try:
-        manifest_data = json.loads(payloads["manifest.json"])
+        raw_manifest = json.loads(payloads["manifest.json"])
+        manifest_data, legacy = _migrate_legacy_manifest(raw_manifest)
         manifest = PhotoFoldManifest.model_validate(manifest_data)
     except (json.JSONDecodeError, ValidationError) as error:
         raise PackageValidationError(f"Invalid package manifest: {error}") from error
-    if set(manifest.required_codecs) != {"webp", "png"}:
-        raise PackageValidationError("Gate 1 packages must declare WebP and PNG codecs")
     for frame in manifest.frames:
+        frame_path = f"frames/{frame.index:03d}/frame.json"
+        try:
+            raw_frame = json.loads(payloads[frame_path])
+            if legacy:
+                raw_frame = _legacy_frame_data(raw_frame, manifest.reference_frame_index or 0)
+            frame_member = FrameRecord.model_validate(raw_frame)
+        except (KeyError, json.JSONDecodeError, ValidationError) as error:
+            raise PackageValidationError(
+                f"Invalid frame metadata member: {frame_path}: {error}"
+            ) from error
+        if frame_member != frame:
+            raise PackageValidationError(
+                f"Frame metadata member disagrees with manifest: {frame_path}"
+            )
+        if frame.storage_mode == "independent_source":
+            _decode_independent_source(frame, payloads)
+            continue
+        if frame.transform is None or manifest.base is None:
+            raise PackageValidationError(f"Shared frame {frame.index} is missing its base data")
         matrix = np.asarray(frame.transform.reference_to_target, dtype=np.float64).reshape(3, 3)
         corners = np.asarray(
             [
@@ -372,10 +580,14 @@ def _decode_frame_from_payloads(
 ) -> np.ndarray:
     if not 0 <= frame_index < len(manifest.frames):
         raise PackageValidationError(f"Frame index is outside the package: {frame_index}")
+    frame = manifest.frames[frame_index]
+    if frame.storage_mode == "independent_source":
+        return _decode_independent_source(frame, payloads)
+    if manifest.base is None or frame.transform is None:
+        raise PackageValidationError(f"Shared frame {frame.index} has no shared base")
     base = decode_rgb(payloads[manifest.base.path])
     if base.shape[:2] != (manifest.base.height, manifest.base.width):
         raise PackageValidationError("Decoded base dimensions disagree with the manifest")
-    frame = manifest.frames[frame_index]
     matrix = np.asarray(frame.transform.reference_to_target, dtype=np.float64).reshape(3, 3)
     reconstruction, _ = warp_reference(
         base,
@@ -429,6 +641,7 @@ def verify_package(package_path: str | Path) -> dict[str, Any]:
         frames.append(
             {
                 "index": frame.index,
+                "storage_mode": frame.storage_mode,
                 "width": int(reconstruction.shape[1]),
                 "height": int(reconstruction.shape[0]),
                 "patch_count": len(frame.patches),
@@ -443,6 +656,9 @@ def verify_package(package_path: str | Path) -> dict[str, Any]:
         "package_sha256": sha256_file(path),
         "format": manifest.format,
         "version": manifest.version,
+        "strategy": manifest.strategy,
+        "shared_frame_count": manifest.shared_frame_count,
+        "fallback_frame_count": manifest.fallback_frame_count,
         "reference_frame_index": manifest.reference_frame_index,
         "frame_count": len(manifest.frames),
         "reconstructed_frame_count": len(frames),

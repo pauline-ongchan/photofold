@@ -12,7 +12,7 @@ import numpy as np
 from PIL import Image, ImageOps, UnidentifiedImageError
 from pydantic import ValidationError
 
-from photofold.gate1.alignment import AlignmentFailure, select_reference_and_align
+from photofold.gate1.alignment import select_shared_scene_group
 from photofold.gate1.bundle import (
     PackageValidationError,
     decode_all_package_frames,
@@ -30,9 +30,11 @@ from photofold.gate1.treatment import (
     selected_parameters,
 )
 from photofold.prototype.models import (
+    AlignmentMeasurement,
     AlignmentRecord,
     Dimensions,
     FrameArtifacts,
+    FrameDisposition,
     PackageContents,
     PrototypeAnalysis,
     PrototypeError,
@@ -52,7 +54,6 @@ DEFERRED_FIELDS = [
     "estimated_changing_region_percent",
     "camera_motion_assessment",
     "automatic_set_splitting",
-    "alignment_based_per_frame_rejection",
 ]
 
 
@@ -116,7 +117,6 @@ def _decode_sources(
 ) -> tuple[list[SourceSnapshot], list[np.ndarray]]:
     frames: list[SourceSnapshot] = []
     images: list[np.ndarray] = []
-    expected_dimensions: tuple[int, int] | None = None
     for frame in prototype_input.frames:
         path = _inside_run(run_directory, f"uploads/{frame.stored_filename}")
         try:
@@ -147,8 +147,8 @@ def _decode_sources(
                     )
                 normalized = ImageOps.exif_transpose(image)
                 normalized.load()
-                if "A" in normalized.getbands():
-                    alpha = normalized.getchannel("A")
+                if "A" in normalized.getbands() or "transparency" in normalized.info:
+                    alpha = normalized.convert("RGBA").getchannel("A")
                     if alpha.getextrema()[0] < 255:
                         raise PrototypeRunError(
                             "UNSUPPORTED_FILE_TYPE",
@@ -158,6 +158,16 @@ def _decode_sources(
                             frame_indices=[frame.index],
                         )
                 dimensions = normalized.size
+                if (
+                    Image.MAX_IMAGE_PIXELS is not None
+                    and dimensions[0] * dimensions[1] > Image.MAX_IMAGE_PIXELS
+                ):
+                    raise PrototypeRunError(
+                        "IMAGE_DECODE_FAILED",
+                        f"{frame.original_filename} exceeds the safe decoded pixel limit.",
+                        "preprocess",
+                        frame_indices=[frame.index],
+                    )
                 mode = normalized.mode
                 rgb = np.asarray(normalized.convert("RGB"), dtype=np.uint8).copy()
         except PrototypeRunError:
@@ -170,16 +180,6 @@ def _decode_sources(
                 frame_indices=[frame.index],
                 debug=str(error),
             ) from error
-        if expected_dimensions is None:
-            expected_dimensions = dimensions
-        elif dimensions != expected_dimensions:
-            raise PrototypeRunError(
-                "DIMENSIONS_INCOMPATIBLE",
-                "All photos must have identical dimensions after orientation is normalized.",
-                "preprocess",
-                frame_indices=[frame.index],
-                debug=f"expected={expected_dimensions}, actual={dimensions}",
-            )
         frames.append(
             SourceSnapshot(
                 index=frame.index,
@@ -200,19 +200,34 @@ def _decode_sources(
 
 
 def _alignment_records(alignment: dict[str, Any]) -> list[AlignmentRecord]:
-    return [
-        AlignmentRecord(
-            frame_index=index,
-            type=transform["type"],
-            reference_to_target=np.asarray(transform["matrix"]).reshape(-1).tolist(),
-            inlier_count=transform["inlier_count"],
-            match_count=transform["match_count"],
-            inlier_ratio=transform["inlier_ratio"],
-            median_reprojection_error=transform["median_reprojection_error"],
-            valid_overlap=transform["valid_overlap"],
+    records: list[AlignmentRecord] = []
+    for index, disposition in enumerate(alignment["dispositions"]):
+        transform = alignment["transforms"][index] or disposition.get("measured_transform")
+        records.append(
+            AlignmentRecord(
+                frame_index=index,
+                decision=(
+                    "fallback"
+                    if disposition["storage_mode"] == "independent_source"
+                    else "shared"
+                ),
+                type=transform["type"] if transform is not None else None,
+                reference_to_target=(
+                    np.asarray(transform["matrix"]).reshape(-1).tolist()
+                    if transform is not None
+                    else None
+                ),
+                inlier_count=transform["inlier_count"] if transform is not None else None,
+                match_count=transform["match_count"] if transform is not None else None,
+                inlier_ratio=transform["inlier_ratio"] if transform is not None else None,
+                median_reprojection_error=(
+                    transform["median_reprojection_error"] if transform is not None else None
+                ),
+                valid_overlap=transform["valid_overlap"] if transform is not None else None,
+                fallback_reason=disposition["fallback_reason"],
+            )
         )
-        for index, transform in enumerate(alignment["transforms"])
-    ]
+    return records
 
 
 def analyze_prototype_run(
@@ -222,57 +237,96 @@ def analyze_prototype_run(
     prototype_input = _load_input(run_directory)
     sources, images = _decode_sources(run_directory, prototype_input)
     config, config_sha256 = load_gate1_config(config_path)
-    reasons: list[str] = []
-    reference_index: int | None = None
-    reference_score: float | None = None
-    candidates: list[ReferenceCandidate] = []
-    records: list[AlignmentRecord] = []
-    try:
-        alignment = select_reference_and_align(images)
-        reference_index = alignment["reference_frame_index"]
-        candidates = [
-            ReferenceCandidate.model_validate(item)
-            for item in alignment["reference_candidates"]
+    minimum_inlier = float(config["alignment"]["min_inlier_ratio"])
+    maximum_error = float(
+        config["alignment"]["max_median_reprojection_error_analysis_pixels"]
+    )
+    alignment = select_shared_scene_group(
+        images,
+        min_inlier_ratio=minimum_inlier,
+        max_median_reprojection_error=maximum_error,
+    )
+    reference_index = alignment["reference_frame_index"]
+    candidates = [
+        ReferenceCandidate.model_validate(item) for item in alignment["reference_candidates"]
+    ]
+    reference_score = (
+        next(item.score for item in candidates if item.index == reference_index)
+        if reference_index is not None
+        else None
+    )
+    records = _alignment_records(alignment)
+    dispositions = [
+        FrameDisposition.model_validate(
+            {
+                "frame_index": item["frame_index"],
+                "storage_mode": item["storage_mode"],
+                "fallback_reason": item["fallback_reason"],
+            }
+        )
+        for item in alignment["dispositions"]
+    ]
+    shared_count = sum(item.storage_mode != "independent_source" for item in dispositions)
+    fallback_count = len(dispositions) - shared_count
+    strategy = alignment["strategy"]
+    if strategy == "shared_scene":
+        reasons = [f"All {shared_count} frames can safely share scene data."]
+    elif strategy == "hybrid":
+        reasons = [
+            f"{shared_count} frames can share scene data; {fallback_count} will be stored "
+            "independently."
         ]
-        reference_score = next(item.score for item in candidates if item.index == reference_index)
-        records = _alignment_records(alignment)
-        minimum_inlier = float(config["alignment"]["min_inlier_ratio"])
-        maximum_error = float(config["alignment"]["max_median_reprojection_error"])
-        below_threshold = [
-            item.frame_index
-            for item in records
-            if item.inlier_ratio < minimum_inlier
-            or item.median_reprojection_error > maximum_error
+    else:
+        reasons = [
+            "These photos will use independent storage because no useful shared-scene "
+            "group passed measured alignment."
         ]
-        if below_threshold:
-            reasons.append(
-                "Frames "
-                + ", ".join(str(index + 1) for index in below_threshold)
-                + " did not meet the committed alignment thresholds."
-            )
-    except AlignmentFailure as error:
-        reasons.append(str(error))
-    except ValueError as error:
-        reasons.append(f"Reference analysis could not establish a reliable alignment: {error}")
-    foldable = not reasons and reference_index is not None and len(records) == len(sources)
+    unique_dimensions = {(source.width, source.height) for source in sources}
+    normalized_dimensions = (
+        Dimensions(width=sources[0].width, height=sources[0].height)
+        if len(unique_dimensions) == 1
+        else None
+    )
+    warnings = [
+        "This local prototype evaluates one set at a time and does not persist restart state.",
+        "Matched-quality relational savings remain evidenced by the accepted offline "
+        "experiment, not this interactive run.",
+    ]
+    if fallback_count:
+        warnings.append(
+            "Independent fallback may reduce or eliminate storage savings; final size is "
+            "reported only after the closed archive is measured."
+        )
     analysis = PrototypeAnalysis(
         analyzed_at=datetime.now(UTC),
-        status="analyzed_foldable" if foldable else "analyzed_rejected",
-        suitability="safe_to_fold" if foldable else "not_foldable",
-        reasons=reasons or ["All frames passed deterministic validation and alignment thresholds."],
+        status="analyzed_foldable",
+        suitability=(
+            "safe_to_fold" if strategy == "shared_scene" else "foldable_with_reduced_savings"
+        ),
+        strategy=strategy,
+        reasons=reasons,
         source_frames=sources,
         original_total_bytes=sum(frame.bytes for frame in sources),
-        normalized_dimensions=Dimensions(width=sources[0].width, height=sources[0].height),
+        normalized_dimensions=normalized_dimensions,
+        shared_frame_count=shared_count,
+        fallback_frame_count=fallback_count,
+        frame_dispositions=dispositions,
         reference_frame_index=reference_index,
         reference_score=reference_score,
         reference_candidates=candidates,
         alignment=records,
+        alignment_measurement=AlignmentMeasurement(
+            analysis_max_dimension=alignment["analysis_max_dimension"],
+            max_median_reprojection_error=maximum_error,
+            min_inlier_ratio=minimum_inlier,
+            description=(
+                "Median inlier reprojection error is measured on an EXIF-normalized copy "
+                "whose longest dimension is at most 800 pixels. It is not scaled back to "
+                "source resolution."
+            ),
+        ),
         config_sha256=config_sha256,
-        warnings=[
-            "This local prototype evaluates one set at a time and does not persist restart state.",
-            "Matched-quality relational savings remain evidenced by the accepted offline "
-            "experiment, not this interactive run.",
-        ],
+        warnings=warnings,
         deferred_fields=DEFERRED_FIELDS,
     )
     _inside_run(run_directory, "analysis.json").write_text(
@@ -308,6 +362,8 @@ def _source_snapshot_matches(before: list[SourceSnapshot], after: list[SourceSna
 
 
 def _classification(path: str) -> str:
+    if "/source." in path:
+        return "independent_source"
     if path.endswith("-mask.png"):
         return "mask"
     if "/patches/" in path and path.endswith(".webp"):
@@ -339,12 +395,6 @@ def fold_prototype_run(
 ) -> PrototypeResult:
     run_directory = Path(run_path).resolve()
     analysis = _load_analysis(run_directory)
-    if analysis.status != "analyzed_foldable":
-        raise PrototypeRunError(
-            "INVALID_RUN_STATE",
-            "This photo set did not pass analysis and cannot be folded.",
-            "service",
-        )
     prototype_input = _load_input(run_directory)
     current_sources, images = _decode_sources(run_directory, prototype_input)
     if not _source_snapshot_matches(analysis.source_frames, current_sources):
@@ -361,25 +411,45 @@ def fold_prototype_run(
             "validation",
         )
     parameters = selected_parameters(config)
-    transforms = [
-        {
-            "type": item.type,
-            "matrix": np.asarray(item.reference_to_target, dtype=np.float64).reshape(3, 3),
-            "inlier_count": item.inlier_count,
-            "match_count": item.match_count,
-            "inlier_ratio": item.inlier_ratio,
-            "median_reprojection_error": item.median_reprojection_error,
-            "valid_overlap": item.valid_overlap,
-        }
-        for item in analysis.alignment
-    ]
+    transforms: list[dict[str, Any] | None] = []
+    for item, disposition in zip(
+        analysis.alignment, analysis.frame_dispositions, strict=True
+    ):
+        if disposition.storage_mode == "independent_source":
+            transforms.append(None)
+            continue
+        if item.type is None or item.reference_to_target is None:
+            raise PrototypeRunError(
+                "INVALID_RUN_STATE",
+                "Saved shared-frame alignment evidence is incomplete.",
+                "validation",
+                frame_indices=[item.frame_index],
+            )
+        transforms.append(
+            {
+                "type": item.type,
+                "matrix": np.asarray(item.reference_to_target, dtype=np.float64).reshape(3, 3),
+                "inlier_count": item.inlier_count,
+                "match_count": item.match_count,
+                "inlier_ratio": item.inlier_ratio,
+                "median_reprojection_error": item.median_reprojection_error,
+                "reprojection_error_units": item.reprojection_error_units,
+                "valid_overlap": item.valid_overlap,
+            }
+        )
     alignment = {
+        "strategy": analysis.strategy,
         "reference_frame_index": analysis.reference_frame_index,
         "reference_candidates": [item.model_dump() for item in analysis.reference_candidates],
         "model_comparison": [],
         "transforms": transforms,
-        "width": analysis.normalized_dimensions.width,
-        "height": analysis.normalized_dimensions.height,
+        "dispositions": [item.model_dump() for item in analysis.frame_dispositions],
+        "alignment_error_units": analysis.alignment_measurement.units,
+        "analysis_max_dimension": analysis.alignment_measurement.analysis_max_dimension,
+        "max_median_reprojection_error": (
+            analysis.alignment_measurement.max_median_reprojection_error
+        ),
+        "min_inlier_ratio": analysis.alignment_measurement.min_inlier_ratio,
     }
     package_path = _inside_run(run_directory, "moment.photofold")
     package = build_treatment_package(
@@ -389,6 +459,13 @@ def fold_prototype_run(
         parameters=parameters,
         original_total_bytes=analysis.original_total_bytes,
         output_path=package_path,
+        storage_dispositions=[item.model_dump() for item in analysis.frame_dispositions],
+        source_payloads=[
+            _inside_run(run_directory, frame.original_artifact).read_bytes()
+            for frame in analysis.source_frames
+        ],
+        source_formats=[frame.decoded_format for frame in analysis.source_frames],
+        alignment_error_threshold=analysis.alignment_measurement.max_median_reprojection_error,
     )
     try:
         verification = verify_package(package_path)
@@ -421,6 +498,7 @@ def fold_prototype_run(
             difference_heatmap(original, reconstruction),
         )
         region = package["region_metrics"][index]
+        disposition = analysis.frame_dispositions[index]
         frame_results.append(
             PrototypeFrameResult(
                 index=index,
@@ -428,6 +506,8 @@ def fold_prototype_run(
                 width=source.width,
                 height=source.height,
                 original_bytes=source.bytes,
+                storage_mode=disposition.storage_mode,
+                fallback_reason=disposition.fallback_reason,
                 reconstructed=True,
                 ssim=score,
                 quality_threshold_pass=score >= minimum_threshold,
@@ -451,6 +531,9 @@ def fold_prototype_run(
     result = PrototypeResult(
         completed_at=datetime.now(UTC),
         status=status,
+        strategy=analysis.strategy,
+        shared_frame_count=analysis.shared_frame_count,
+        fallback_frame_count=analysis.fallback_frame_count,
         reference_frame_index=analysis.reference_frame_index,
         reconstructed_frame_count=len(reconstructions),
         storage=StorageResult(
@@ -477,6 +560,7 @@ def fold_prototype_run(
             patch_count=roles.count("patch"),
             mask_count=roles.count("mask"),
             metadata_count=roles.count("metadata"),
+            independent_source_count=roles.count("independent_source"),
             member_payload_bytes=sum(member["bytes"] for member in members),
         ),
         package_artifact="moment.photofold",
@@ -484,6 +568,11 @@ def fold_prototype_run(
             *analysis.warnings,
             "Storage is compared with exact uploaded source bytes.",
             "This interactive run does not rerun the independent-WebP rate-distortion sweep.",
+            *(
+                ["Independent storage reduced or eliminated shared-scene savings."]
+                if analysis.fallback_frame_count
+                else []
+            ),
         ],
     )
     _inside_run(run_directory, "package-inventory.json").write_text(
@@ -506,6 +595,8 @@ def failed_result(run_path: str | Path, error: PrototypeError) -> PrototypeResul
             width=frame.width,
             height=frame.height,
             original_bytes=frame.bytes,
+            storage_mode=analysis.frame_dispositions[frame.index].storage_mode,
+            fallback_reason=analysis.frame_dispositions[frame.index].fallback_reason,
             reconstructed=False,
             artifacts=FrameArtifacts(original=frame.original_artifact),
         )
@@ -514,6 +605,9 @@ def failed_result(run_path: str | Path, error: PrototypeError) -> PrototypeResul
     result = PrototypeResult(
         completed_at=datetime.now(UTC),
         status="failed",
+        strategy=analysis.strategy,
+        shared_frame_count=analysis.shared_frame_count,
+        fallback_frame_count=analysis.fallback_frame_count,
         reference_frame_index=analysis.reference_frame_index,
         reconstructed_frame_count=0,
         storage=None,

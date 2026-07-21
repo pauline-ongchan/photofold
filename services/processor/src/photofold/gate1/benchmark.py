@@ -328,7 +328,7 @@ def run_benchmark(
     alignment_threshold_pass = all(
         transform["inlier_ratio"] >= float(config["alignment"]["min_inlier_ratio"])
         and transform["median_reprojection_error"]
-        <= float(config["alignment"]["max_median_reprojection_error"])
+        <= float(config["alignment"]["max_median_reprojection_error_analysis_pixels"])
         for transform in alignment["transforms"]
     )
     integrity_checks = [
@@ -360,7 +360,8 @@ def run_benchmark(
             "detail": (
                 f"every transform has inlier ratio ≥ "
                 f"{config['alignment']['min_inlier_ratio']} and median reprojection "
-                f"error ≤ {config['alignment']['max_median_reprojection_error']} px"
+                "analysis-space error ≤ "
+                f"{config['alignment']['max_median_reprojection_error_analysis_pixels']} px"
             ),
         },
         {

@@ -16,6 +16,7 @@ from photofold.gate1.bundle import (
     export_package_frame,
     verify_package,
 )
+from photofold.gate1.models import export_photofold_schema
 from photofold.gate1.report import verify_report
 from photofold.phase1b.benchmark import run_phase1b_dataset
 from photofold.phase1b.datasets import validate_phase1b_collection
@@ -96,6 +97,12 @@ def _export_prototype_schemas(args: argparse.Namespace) -> int:
     paths = export_prototype_schemas(args.output_directory)
     for path in paths:
         print(f"Wrote {path}")
+    return 0
+
+
+def _export_photofold_schema(args: argparse.Namespace) -> int:
+    path = export_photofold_schema(args.output)
+    print(f"Wrote {path}")
     return 0
 
 
@@ -285,6 +292,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     prototype_schemas.add_argument("--output-directory", required=True)
     prototype_schemas.set_defaults(handler=_export_prototype_schemas)
+
+    photofold_schema = commands.add_parser(
+        "export-photofold-schema",
+        help="Write the generated PhotoFold manifest schema from its Pydantic model",
+    )
+    photofold_schema.add_argument("--output", required=True)
+    photofold_schema.set_defaults(handler=_export_photofold_schema)
 
     prototype_analyze = commands.add_parser(
         "prototype-analyze",
