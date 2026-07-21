@@ -226,15 +226,20 @@ describe("PhotoFold Gate 3 workflow", () => {
     expect(screen.getByText(/Contains everything needed to rebuild and export all photos/)).toBeInTheDocument();
     const storageResult = screen.getByRole("region", { name: "Storage result" });
     expect(storageResult).toBeInTheDocument();
-    expect(screen.getByText("5 photos preserved")).toBeInTheDocument();
-    expect(screen.getByText("4 using shared storage · 1 stored whole")).toBeInTheDocument();
+    expect(storageResult).toHaveTextContent("5 photos preserved");
+    expect(screen.getByText("4 shared storage")).toBeInTheDocument();
+    expect(screen.getByText("1 stored whole")).toBeInTheDocument();
     expect(screen.getByText("500 B larger than the uploaded files")).toBeInTheDocument();
     expect(screen.queryByText("Quality passed")).not.toBeInTheDocument();
 
+    const sharedStorageTab = screen.getByRole("tab", { name: "Shared storage (4)" });
+    const storedWholeTab = screen.getByRole("tab", { name: "Stored whole (1)" });
+    expect(sharedStorageTab).toHaveAttribute("aria-selected", "true");
+    expect(storedWholeTab).toHaveAttribute("aria-selected", "false");
     const photoSelector = screen.getByLabelText("Photo selector");
+    expect(photoSelector.querySelectorAll("button")).toHaveLength(4);
     expect(photoSelector).toContainElement(screen.getByRole("button", { name: "Photo 1 · Shared storage · 90.0% match" }));
-    const storedWholeButton = screen.getByRole("button", { name: "Photo 5 · Stored whole · 86.0% match" });
-    expect(photoSelector).toContainElement(storedWholeButton);
+    expect(screen.queryByRole("button", { name: "Photo 5 · Stored whole · 86.0% match" })).not.toBeInTheDocument();
     expect(document.querySelector(".selected-photo-summary")).not.toBeInTheDocument();
 
     const advancedDetails = screen.getByText("Advanced details").closest("details");
@@ -269,15 +274,29 @@ describe("PhotoFold Gate 3 workflow", () => {
     expect(screen.getByText(/does not show what moved between burst photos/)).toBeInTheDocument();
     expect(screen.getByRole("img", { name: /difference for frame-2.jpg/i })).toBeInTheDocument();
 
-    fireEvent.click(storedWholeButton);
+    const viewerControls = document.querySelector(".viewer-controls-stack");
+    fireEvent.click(storedWholeTab);
+    const storedWholeButton = screen.getByRole("button", { name: "Photo 5 · Stored whole · 86.0% match" });
+    expect(photoSelector.querySelectorAll("button")).toHaveLength(1);
+    expect(photoSelector).toContainElement(storedWholeButton);
     expect(storedWholeButton).toHaveAttribute("aria-pressed", "true");
+    expect(storedWholeTab).toHaveAttribute("aria-selected", "true");
+    expect(sharedStorageTab).toHaveAttribute("aria-selected", "false");
+    expect(document.querySelector(".viewer-controls-stack")).toBe(viewerControls);
     expect(screen.getByText(/Stored whole · SSIM 0.8600/)).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: "Viewer mode" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Original" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Rebuilt photo" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Change heatmap" })).not.toBeInTheDocument();
+    expect(screen.getByText("Original photo preserved")).toBeInTheDocument();
+    expect(screen.getByText(/stored as-is, so there is no rebuilt version to compare/)).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Stored photo frame-4.jpg" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Save this photo" })).toBeInTheDocument();
+
+    fireEvent.click(sharedStorageTab);
+    expect(photoSelector.querySelectorAll("button")).toHaveLength(4);
+    expect(screen.getByRole("group", { name: "Viewer mode" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Photo 3 · Shared storage · 88.0% match" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("uses neutral independent-only strategy language", async () => {

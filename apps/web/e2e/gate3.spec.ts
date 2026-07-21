@@ -67,8 +67,9 @@ test("curated upload → analyze → fold → inspect → export → bundle", as
   const storageResult = page.getByRole("region", { name: "Storage result" });
   await expect(storageResult).toBeVisible();
   await expect(page.getByText("7 photos preserved")).toBeVisible();
-  await expect(page.getByText(`${result.shared_frame_count} using shared storage · ${result.fallback_frame_count} stored whole`)).toBeVisible();
-  await expect(page.getByText(`${formatBytesForTest(result.storage.bytes_saved)} saved · ${result.storage.percent_saved.toFixed(1)}% less storage`)).toBeVisible();
+  await expect(page.getByText(`${result.shared_frame_count} shared storage`, { exact: true })).toBeVisible();
+  await expect(page.getByText(`${result.storage.percent_saved.toFixed(1)}% less storage`, { exact: true })).toBeVisible();
+  await expect(page.getByText(`${formatBytesForTest(result.storage.bytes_saved)} saved`, { exact: true })).toBeVisible();
   await expect(page.getByText(result.quality.mean_ssim.toFixed(4), { exact: true })).toBeVisible();
   await expect(page.getByText(result.quality.minimum_ssim.toFixed(4), { exact: true })).toBeVisible();
 
@@ -187,10 +188,19 @@ test("native burst completes with explicit per-frame fallback", async ({ page })
   expect(result.fallback_frame_count).toBe(2);
   const fallback = result.frames.find((frame: { storage_mode: string }) => frame.storage_mode === "independent_source");
   expect(fallback).toBeTruthy();
-  await page.getByRole("button", {
+  const viewer = page.getByTestId("frame-viewer");
+  const viewerTopBeforeGroupChange = await viewer.evaluate((element) => element.getBoundingClientRect().top + window.scrollY);
+  await page.getByRole("tab", { name: `Stored whole (${result.fallback_frame_count})` }).click();
+  const storedWholeButton = page.getByRole("button", {
     name: `Photo ${fallback.index + 1} · Stored whole · ${formatVisualMatchForTest(fallback.ssim)} match${fallback.quality_threshold_pass === false ? " · Needs review" : ""}`,
-  }).click();
+  });
+  await expect(storedWholeButton).toBeVisible();
+  await storedWholeButton.click();
+  await expect(page.getByLabel("Photo selector").getByRole("button")).toHaveCount(result.fallback_frame_count);
+  const viewerTopAfterGroupChange = await viewer.evaluate((element) => element.getBoundingClientRect().top + window.scrollY);
+  expect(Math.abs(viewerTopAfterGroupChange - viewerTopBeforeGroupChange)).toBeLessThan(2);
   await expect(page.getByRole("group", { name: "Viewer mode" })).toHaveCount(0);
+  await expect(page.getByText("Original photo preserved", { exact: true })).toBeVisible();
   await expect(page.getByRole("img", { name: `Stored photo ${fallback.original_filename}` })).toBeVisible();
   await expect(page.getByRole("link", { name: "Save this photo" })).toBeVisible();
   await expect(page.getByText(/inlier ratio/i)).toHaveCount(0);

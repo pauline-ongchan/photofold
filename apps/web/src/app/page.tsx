@@ -508,6 +508,7 @@ function ResultsStep(props: ResultsStepProps) {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [panning, setPanning] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const selectedByStorageRef = useRef<{ shared: number | null; storedWhole: number | null }>({ shared: null, storedWhole: null });
   const dragRef = useRef<{
     pointerId: number;
     startX: number;
@@ -532,6 +533,12 @@ function ResultsStep(props: ResultsStepProps) {
         : "PhotoFold could not finish. See the error below.";
   const selectedStorage = storageCopy(frame.storage_mode);
   const selectedStoredWhole = frame.storage_mode === "independent_source";
+  const sharedFrames = result.frames.filter((item) => item.storage_mode !== "independent_source");
+  const storedWholeFrames = result.frames.filter((item) => item.storage_mode === "independent_source");
+  const mixedStorage = sharedFrames.length > 0 && storedWholeFrames.length > 0;
+  const visibleFrames = mixedStorage
+    ? selectedStoredWhole ? storedWholeFrames : sharedFrames
+    : result.frames;
   const savedStorage = result.storage?.is_smaller_than_originals && result.storage.bytes_saved > 0;
   const sizeResult = !result.storage
     ? "Size unavailable"
@@ -632,16 +639,28 @@ function ResultsStep(props: ResultsStepProps) {
         {result.error ? <ErrorPanel error={{ error: result.error }} nested /> : null}
 
         {result.storage && result.quality && result.package_contents && (
-          <div className="storage-result-hero mb-5" role="region" aria-labelledby="storage-result-heading">
-            <p id="storage-result-heading" className="eyebrow">Storage result</p>
-            <div className="collection-result-grid mt-4">
-              <div className="collection-size-result">
-                <p className="font-mono text-sm text-[#607066]">{formatBytes(result.storage.original_total_bytes)} <span aria-hidden="true">→</span> {formatBytes(result.storage.package_total_bytes)}</p>
-                <p className={`mt-2 text-2xl font-semibold tracking-[-0.03em] ${savedStorage ? "text-[#215f36]" : "text-[#8a5a20]"}`}>{sizeResult}</p>
-              </div>
-              <div>
-                <p className="text-xl font-semibold tracking-[-0.025em]">{result.reconstructed_frame_count} photos preserved</p>
-                <p className="mt-2 text-sm leading-6 text-[#607066]">{result.shared_frame_count} using shared storage · {result.fallback_frame_count} stored whole</p>
+          <div className={`storage-result-hero mb-5 ${savedStorage ? "storage-result-hero-positive" : "storage-result-hero-neutral"}`} role="region" aria-labelledby="storage-result-heading">
+            <div className="storage-result-primary">
+              <p id="storage-result-heading" className="eyebrow">Storage result</p>
+              {savedStorage ? (
+                <div className="storage-result-saving">
+                  <p className="storage-result-value">{formatPercent(result.storage.percent_saved)} less storage</p>
+                  <span className="storage-result-badge">{formatBytes(result.storage.bytes_saved)} saved</span>
+                </div>
+              ) : (
+                <p className="storage-result-value storage-result-value-neutral">{sizeResult}</p>
+              )}
+              <p className="storage-size-flow">
+                <span>{formatBytes(result.storage.original_total_bytes)} original</span>
+                <span aria-hidden="true">→</span>
+                <span>{formatBytes(result.storage.package_total_bytes)} PhotoFold collection</span>
+              </p>
+            </div>
+            <div className="storage-result-summary">
+              <p><strong>{result.reconstructed_frame_count}</strong> photos preserved</p>
+              <div className="storage-result-chips" aria-label="Photo storage summary">
+                {result.shared_frame_count > 0 && <span>{result.shared_frame_count} shared storage</span>}
+                {result.fallback_frame_count > 0 && <span>{result.fallback_frame_count} stored whole</span>}
               </div>
             </div>
           </div>
@@ -649,8 +668,62 @@ function ResultsStep(props: ResultsStepProps) {
 
         {frame.reconstructed && (
           <>
-            <div className="flex gap-2 overflow-x-auto pb-2" aria-label="Photo selector">
-              {result.frames.map((item) => {
+            {mixedStorage && (
+              <div className="storage-group-tabs mb-3" role="tablist" aria-label="Photo storage group">
+                <button
+                  id="shared-storage-tab"
+                  className={`storage-group-tab ${!selectedStoredWhole ? "storage-group-tab-active" : ""}`}
+                  type="button"
+                  role="tab"
+                  aria-label={`Shared storage (${sharedFrames.length})`}
+                  aria-selected={!selectedStoredWhole}
+                  aria-controls="photo-selector"
+                  onClick={() => {
+                    if (!selectedStoredWhole) return;
+                    selectedByStorageRef.current.storedWhole = frame.index;
+                    const nextSharedFrame = sharedFrames.find(
+                      (item) => item.index === selectedByStorageRef.current.shared,
+                    ) ?? sharedFrames[0];
+                    if (!nextSharedFrame) return;
+                    resetPan();
+                    props.setZoom(1);
+                    props.setSelectedFrame(nextSharedFrame.index);
+                  }}
+                >
+                  Shared storage <span>{sharedFrames.length}</span>
+                </button>
+                <button
+                  id="stored-whole-tab"
+                  className={`storage-group-tab ${selectedStoredWhole ? "storage-group-tab-active" : ""}`}
+                  type="button"
+                  role="tab"
+                  aria-label={`Stored whole (${storedWholeFrames.length})`}
+                  aria-selected={selectedStoredWhole}
+                  aria-controls="photo-selector"
+                  onClick={() => {
+                    if (selectedStoredWhole) return;
+                    selectedByStorageRef.current.shared = frame.index;
+                    const nextStoredWholeFrame = storedWholeFrames.find(
+                      (item) => item.index === selectedByStorageRef.current.storedWhole,
+                    ) ?? storedWholeFrames[0];
+                    if (!nextStoredWholeFrame) return;
+                    resetPan();
+                    props.setZoom(1);
+                    props.setSelectedFrame(nextStoredWholeFrame.index);
+                  }}
+                >
+                  Stored whole <span>{storedWholeFrames.length}</span>
+                </button>
+              </div>
+            )}
+
+            <div
+              id="photo-selector"
+              className="flex gap-2 overflow-x-auto pb-2"
+              aria-label="Photo selector"
+              role={mixedStorage ? "tabpanel" : undefined}
+            >
+              {visibleFrames.map((item) => {
                 const itemStorage = storageCopy(item.storage_mode);
                 const needsReview = item.quality_threshold_pass === false;
                 const visualMatch = formatVisualMatch(item.ssim);
@@ -662,6 +735,8 @@ function ResultsStep(props: ResultsStepProps) {
                     aria-pressed={item.index === frame.index}
                     aria-label={`Photo ${item.index + 1} · ${itemStorage.cardLabel} · ${visualMatch} match${needsReview ? " · Needs review" : ""}`}
                     onClick={() => {
+                      if (item.storage_mode === "independent_source") selectedByStorageRef.current.storedWhole = item.index;
+                      else selectedByStorageRef.current.shared = item.index;
                       resetPan();
                       props.setSelectedFrame(item.index);
                     }}
@@ -675,38 +750,42 @@ function ResultsStep(props: ResultsStepProps) {
               })}
             </div>
 
-            {!selectedStoredWhole && (
-              <div className="mt-5 flex flex-wrap gap-2" role="group" aria-label="Viewer mode">
+            <div className="viewer-controls-stack">
+              <div className="viewer-mode-row mt-5">
+                {!selectedStoredWhole ? <div className="flex flex-wrap gap-2" role="group" aria-label="Viewer mode">
                 {(["compare", "original", "reconstruction", "difference"] as ViewMode[]).map((mode) => (
                   <button className={`view-tab ${props.viewMode === mode ? "view-tab-active" : ""}`} type="button" key={mode} onClick={() => props.setViewMode(mode)}>
                     {mode === "difference" ? "Change heatmap" : mode === "reconstruction" ? "Rebuilt photo" : mode[0].toUpperCase() + mode.slice(1)}
                   </button>
                 ))}
-              </div>
-            )}
-
-            <div className={`${selectedStoredWhole ? "mt-5" : "mt-4"} flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-[#17211b]/10 pb-4`}>
-              <div className="flex items-center gap-3">
-                {props.zoom > 1 && (
-                  <button className="view-reset-button" type="button" onClick={() => setViewerZoom(1)}>
-                    Fit
-                  </button>
+                </div> : (
+                  <p className="stored-whole-label"><strong>Stored whole</strong><span>No rebuilt version needed</span></p>
                 )}
-                <label className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#607066]">
-                  Zoom {zoomLabel(props.zoom)}
-                  <input aria-label="Zoom" type="range" min="1" max="3" step="0.25" value={props.zoom} onChange={(event) => setViewerZoom(Number(event.target.value))} />
-                </label>
               </div>
-              {!selectedStoredWhole && props.viewMode === "compare" && (
-                <label className="flex min-w-[min(100%,18rem)] flex-1 items-center gap-3 text-xs font-semibold text-[#607066]">
-                  Original {props.comparison}%
-                  <input className="min-w-0 flex-1" aria-label="Comparison position" type="range" min="0" max="100" value={props.comparison} onChange={(event) => props.setComparison(Number(event.target.value))} />
-                  Rebuilt
-                </label>
-              )}
-            </div>
 
-            {!selectedStoredWhole && <ViewerGuide mode={props.viewMode} />}
+              <div className="viewer-adjustments-row">
+                <div className="flex items-center gap-3">
+                  {props.zoom > 1 && (
+                    <button className="view-reset-button" type="button" onClick={() => setViewerZoom(1)}>
+                      Fit
+                    </button>
+                  )}
+                  <label className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#607066]">
+                    Zoom {zoomLabel(props.zoom)}
+                    <input aria-label="Zoom" type="range" min="1" max="3" step="0.25" value={props.zoom} onChange={(event) => setViewerZoom(Number(event.target.value))} />
+                  </label>
+                </div>
+                {!selectedStoredWhole && props.viewMode === "compare" && (
+                  <label className="flex min-w-[min(100%,18rem)] flex-1 items-center gap-3 text-xs font-semibold text-[#607066]">
+                    Original {props.comparison}%
+                    <input className="min-w-0 flex-1" aria-label="Comparison position" type="range" min="0" max="100" value={props.comparison} onChange={(event) => props.setComparison(Number(event.target.value))} />
+                    Rebuilt
+                  </label>
+                )}
+              </div>
+
+              {selectedStoredWhole ? <StoredWholeGuide /> : <ViewerGuide mode={props.viewMode} />}
+            </div>
 
             <div
               className={`viewer-stage mt-4 ${props.zoom > 1 ? "viewer-stage-pannable" : ""} ${panning ? "viewer-stage-panning" : ""}`}
@@ -899,6 +978,15 @@ function ViewerGuide({ mode }: { mode: ViewMode }) {
     <div className={`viewer-guide mt-4 ${mode === "difference" ? "viewer-guide-heatmap" : ""}`} role="note">
       <p className="font-semibold text-[#17211b]">{content.title}</p>
       <p className="mt-1 text-sm leading-6 text-[#607066]">{content.body}</p>
+    </div>
+  );
+}
+
+function StoredWholeGuide() {
+  return (
+    <div className="viewer-guide mt-4" role="note">
+      <p className="font-semibold text-[#17211b]">Original photo preserved</p>
+      <p className="mt-1 text-sm leading-6 text-[#607066]">This photo is stored as-is, so there is no rebuilt version to compare.</p>
     </div>
   );
 }
