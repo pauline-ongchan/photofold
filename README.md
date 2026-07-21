@@ -2,17 +2,43 @@
 
 **Keep every shot. Store the shared scene once.**
 
-PhotoFold is a local-first prototype that compresses a burst of similar photos into one reconstructable `.photofold` collection. It preserves every frame instead of choosing a “best shot” or deleting duplicates.
+PhotoFold helps people keep every photo from a moment without storing the same background again and again. It turns a burst of similar photos into one smaller, reconstructable `.photofold` collection while preserving every frame.
 
-## What it does
+## Why PhotoFold
 
-1. Accepts 5–20 JPEG, PNG, or WebP photos from the same moment.
-2. Selects a reference frame and aligns compatible photos with ORB features and RANSAC.
-3. Stores one shared WebP scene plus frame-specific patches and lossless masks.
-4. Keeps low-confidence frames whole rather than forcing an unsafe fold.
-5. Reconstructs every photo from the closed archive and reports real archive size and per-frame visual similarity.
+People often take several photos to capture the right smile, gesture, or expression. Existing photo cleaners solve the resulting storage problem by asking users to delete most of those photos. PhotoFold takes a different approach: keep every version, identify what the photos share, and store the differences that make each frame unique.
 
-The web demo supports the complete local workflow: upload, analyze, fold, compare, export an individual photo, and download the `.photofold` archive. It does not require an account, database, cloud service, model credential, or network connection at runtime.
+The prototype is local-first. Personal photos stay on the user’s computer, and a downloaded collection can be opened and reconstructed without a network connection.
+
+## Product experience
+
+1. **Choose** 5–20 JPEG, PNG, or WebP photos from the same moment.
+2. **Check** which photos can safely share storage.
+3. **Create** one collection that preserves every compatible or independently stored frame.
+4. **Compare and export** rebuilt photos, inspect visual differences, save an individual image, or download the complete archive.
+
+PhotoFold reports the real size of the finished archive and measures how closely every rebuilt photo matches its original. If a photo is not a safe match, PhotoFold keeps it whole instead of forcing it into the shared representation.
+
+## What makes it different
+
+Traditional image formats compress each photo independently. Duplicate cleaners find similar photos so users can delete them. PhotoFold preserves every frame while encoding the shared visual relationship across one moment.
+
+This creates a practical balance between storage, quality, and trust: users keep every photo, uncertain frames remain protected, and the product explains what happened instead of hiding failed quality checks.
+
+## Measured evidence
+
+Every evaluated `.photofold` archive reconstructed every frame from the archive alone.
+
+On the seven-photo reference burst:
+
+- Original photos: **4,408,395 bytes**
+- PhotoFold archive: **677,744 bytes**
+- Independently compressed WebP comparison at equal or better measured quality: **725,126 bytes**
+- PhotoFold relational advantage: **47,382 bytes**
+- Mean visual-similarity score: **0.851131**
+- Lowest per-photo score: **0.826471**
+
+Three additional real-world bursts contained **42 photos** and **98,292,352 source bytes**, producing **26,297,683 PhotoFold bytes**. Results varied with camera movement, lighting, and scene stability, showing where shared storage works best and where keeping a frame independent is the safer choice.
 
 ## Run the demo
 
@@ -41,26 +67,26 @@ npm ci
 make human-verify-gate3 DATASET=data/demo/hdrplus-static
 ```
 
-Wait for the local services to start, then open <http://127.0.0.1:3000>. Upload the seven images from `data/demo/hdrplus-static/` and follow the four on-screen steps. Stop the demo with `Ctrl-C`.
+Open <http://127.0.0.1:3000>, upload the seven images from `data/demo/hdrplus-static/`, and follow the four on-screen steps. Stop the demo with `Ctrl-C`.
 
 ## Sample data
 
 `data/demo/hdrplus-static/` contains seven checksum-verified 1600×1200 JPEG frames derived from one Google HDR+ mobile-camera burst. The images are licensed CC BY-SA 4.0; provenance, attribution, source URLs, conversion settings, and checksums are documented in [`data/demo/README.md`](data/demo/README.md).
 
-Three additional real bursts covering handheld capture, moving subjects, and camera motion or lighting changes are available under `data/real-bursts/`. Their manifests pin frame order, checksums, formats, dimensions, provenance, and preparation metadata.
+Three additional bursts covering handheld capture, moving subjects, and camera or lighting changes are available under `data/real-bursts/`.
+
+## Technology
+
+The processor uses Python, OpenCV, Pillow/WebP, NumPy, scikit-image, and Pydantic. The product experience uses Next.js, React, TypeScript, Tailwind CSS, Vitest, and Playwright.
+
+Under the hood, PhotoFold aligns compatible photos, stores one shared scene with the information needed to recover each frame, validates the finished archive, and reconstructs every photo without reading the original upload directory.
 
 ## How Codex and GPT-5.6 were used
 
-Codex with GPT-5.6 accelerated the Build Week engineering workflow by helping to:
+We began with a product hypothesis and used Codex with GPT-5.6 to turn it into a measurable system. Codex accelerated implementation across the Python pipeline, Next.js interface, archive format, typed contracts, and automated tests.
 
-- turn the product requirements into explicit implementation gates;
-- implement and review the Python and TypeScript code;
-- generate and synchronize OpenAPI-derived contracts;
-- design package invariants and failure handling;
-- write unit, integration, and browser tests;
-- analyze measured compression and quality evidence; and
-- iterate on the plain-language product experience.
+GPT-5.6 helped challenge assumptions and shape key product decisions: measure the complete finished archive, compare against independently compressed photos at matched quality, reconstruct without the original uploads, preserve uncertain frames independently, and explain quality failures clearly.
 
-The key decisions were evidence-driven: keep the codec deterministic and offline, measure the final closed archive instead of estimating it, compare against quality-matched independent WebP, preserve low-confidence frames independently, and display failed quality checks honestly.
+The result was an iterative loop of **hypothesis → implementation → test → failure analysis → revised design → measured evidence**. GPT-5.6 shaped the engineering and evaluation process while the codec remained deterministic, private, and locally reconstructable.
 
-GPT-5.6 was used through Codex during development. It is not a hidden runtime dependency: the submitted compression workflow remains fully functional without an API key or network connection.
+Detailed requirements, experiment methodology, and technical contracts are available in [`docs/`](docs/).
