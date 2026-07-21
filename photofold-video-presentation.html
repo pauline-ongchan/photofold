@@ -1,0 +1,935 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>PhotoFold — Video Presentation</title>
+  <style>
+    :root {
+      --ink: #17211b;
+      --ink-soft: #35483b;
+      --muted: #607066;
+      --paper: #f3f0e8;
+      --paper-bright: #faf8f2;
+      --panel: rgba(255, 255, 255, 0.78);
+      --line: rgba(23, 33, 27, 0.13);
+      --moss: #496151;
+      --moss-light: #d9eadc;
+      --positive: #215f36;
+      --positive-bg: #dbf2df;
+      --warm: #b5782f;
+      --warm-bg: #fff0c9;
+      --shadow: 0 36px 110px rgba(23, 33, 27, 0.13);
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #121713;
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button { font: inherit; }
+
+    .app {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: center;
+    }
+
+    .viewport {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      transform-origin: center center;
+      background: var(--paper);
+      box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 50px 160px rgba(0,0,0,.42);
+    }
+
+    .viewport::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 8% 8%, rgba(217, 234, 220, .78), transparent 27%),
+        radial-gradient(circle at 88% 92%, rgba(255, 240, 201, .52), transparent 25%),
+        linear-gradient(120deg, transparent 0 48%, rgba(23, 33, 27, .018) 48% 52%, transparent 52% 100%);
+    }
+
+    .slides { position: absolute; inset: 0; z-index: 1; }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      padding: 92px 112px 108px;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateX(70px) scale(.985);
+      transition: opacity 420ms ease, transform 620ms var(--ease), visibility 0s linear 620ms;
+    }
+
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translateX(0) scale(1);
+      transition-delay: 0s;
+    }
+
+    .slide.was-active { transform: translateX(-70px) scale(.985); }
+
+    .slide::after {
+      content: attr(data-scene-label);
+      position: absolute;
+      top: 52px;
+      right: 66px;
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 17px;
+      font-weight: 750;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow {
+      margin: 0 0 26px;
+      color: var(--moss);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1, h2 {
+      letter-spacing: -.055em;
+      line-height: .97;
+    }
+
+    h1 { margin-bottom: 28px; font-size: 122px; font-weight: 660; }
+    h2 { margin-bottom: 32px; font-size: 96px; font-weight: 650; }
+    h3 { letter-spacing: -.035em; }
+
+    .lead {
+      max-width: 1120px;
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 42px;
+      font-weight: 520;
+      letter-spacing: -.03em;
+      line-height: 1.22;
+    }
+
+    .small-copy {
+      color: var(--muted);
+      font-size: 24px;
+      line-height: 1.45;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 34px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      width: fit-content;
+      border-radius: 999px;
+      padding: 13px 19px;
+      background: var(--moss-light);
+      color: var(--positive);
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .muted { color: var(--muted); }
+
+    /* Scene 1 */
+    .scene-problem {
+      grid-template-columns: 0.82fr 1.18fr;
+      align-items: center;
+      gap: 70px;
+    }
+
+    .scene-problem .copy { position: relative; z-index: 3; }
+    .scene-problem h1 { max-width: 740px; font-size: 101px; }
+
+    .burst-gallery {
+      position: relative;
+      height: 740px;
+      perspective: 1400px;
+    }
+
+    .burst-card {
+      position: absolute;
+      width: 510px;
+      height: 382px;
+      overflow: hidden;
+      border: 11px solid rgba(255,255,255,.94);
+      border-radius: 28px;
+      background: #dfe5dc;
+      box-shadow: 0 30px 70px rgba(23,33,27,.2);
+      opacity: 0;
+      transform: translate3d(0, 130px, 0) rotate(var(--r));
+    }
+
+    .burst-card img { width: 100%; height: 100%; object-fit: cover; }
+    .burst-card:nth-child(1) { left: 50px; top: 45px; --r: -7deg; }
+    .burst-card:nth-child(2) { left: 355px; top: 28px; --r: 4deg; }
+    .burst-card:nth-child(3) { left: 590px; top: 140px; --r: 8deg; }
+    .burst-card:nth-child(4) { left: 30px; top: 340px; --r: -4deg; }
+    .burst-card:nth-child(5) { left: 330px; top: 315px; --r: 2deg; }
+    .burst-card:nth-child(6) { left: 610px; top: 420px; --r: 6deg; }
+    .burst-card:nth-child(7) { left: 230px; top: 150px; --r: -1deg; z-index: 2; }
+
+    .active .burst-card { animation: card-arrive 820ms var(--ease) forwards; animation-delay: calc(var(--i) * 100ms + 160ms); }
+    .active .burst-card:nth-child(7) { animation-name: card-arrive-hero; }
+
+    .repeat-window {
+      position: absolute;
+      z-index: 5;
+      left: 400px;
+      top: 270px;
+      width: 270px;
+      height: 170px;
+      border: 4px solid rgba(255,255,255,.92);
+      border-radius: 20px;
+      box-shadow: 0 0 0 999px rgba(23,33,27,.08), 0 22px 60px rgba(23,33,27,.25);
+      opacity: 0;
+    }
+
+    .active .repeat-window { animation: repeat-pulse 2.5s var(--ease) 1.4s infinite; }
+
+    /* Scene 2 */
+    .scene-idea { align-items: center; }
+    .scene-idea .layout { display: grid; grid-template-columns: .9fr 1.1fr; align-items: center; gap: 80px; }
+    .scene-idea h2 { max-width: 770px; font-size: 102px; }
+    .scene-idea h2 span { display: block; color: var(--moss); }
+
+    .fold-visual { position: relative; height: 720px; }
+    .fold-reference,
+    .change-layer {
+      position: absolute;
+      overflow: hidden;
+      border-radius: 32px;
+      background: var(--paper-bright);
+      box-shadow: var(--shadow);
+    }
+
+    .fold-reference { left: 190px; top: 90px; width: 650px; height: 490px; border: 12px solid white; }
+    .fold-reference img { width: 100%; height: 100%; object-fit: cover; }
+
+    .reference-label {
+      position: absolute;
+      left: 222px;
+      top: 530px;
+      z-index: 3;
+      border-radius: 999px;
+      padding: 12px 18px;
+      background: var(--ink);
+      color: white;
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .change-layer {
+      width: 248px;
+      height: 170px;
+      border: 2px solid rgba(73,97,81,.3);
+      opacity: 0;
+      transform: translate(-120px, 90px) scale(.8);
+    }
+
+    .change-layer::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at var(--x) var(--y), rgba(181,120,47,.75) 0 10%, rgba(255,240,201,.8) 11% 22%, transparent 23%),
+        repeating-linear-gradient(135deg, transparent 0 9px, rgba(73,97,81,.08) 10px 12px);
+    }
+
+    .change-layer span { position: absolute; left: 17px; bottom: 14px; color: var(--ink-soft); font-size: 15px; font-weight: 800; }
+    .change-layer.one { right: 25px; top: 42px; --x: 66%; --y: 34%; }
+    .change-layer.two { right: 4px; top: 280px; --x: 32%; --y: 65%; }
+    .change-layer.three { right: 65px; top: 515px; --x: 72%; --y: 52%; }
+    .active .fold-reference { animation: reference-settle 1s var(--ease) both; }
+    .active .change-layer { animation: layer-arrive 760ms var(--ease) forwards; animation-delay: calc(var(--i) * 190ms + 750ms); }
+
+    /* Scene 3 */
+    .scene-select { grid-template-rows: auto 1fr; gap: 38px; }
+    .scene-select .topline { display: flex; align-items: end; justify-content: space-between; gap: 40px; }
+    .scene-select h2 { margin-bottom: 0; font-size: 76px; }
+    .product-shell { display: grid; grid-template-columns: 1fr 390px; gap: 28px; min-height: 0; }
+    .upload-panel { padding: 34px; }
+    .product-heading { display: flex; align-items: center; justify-content: space-between; gap: 22px; margin-bottom: 28px; }
+    .product-heading h3 { margin: 0; font-size: 33px; }
+    .thumb-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 14px; }
+    .thumb { position: relative; overflow: hidden; aspect-ratio: 4 / 3; border-radius: 18px; background: #e3e7df; opacity: 0; transform: translateY(32px); }
+    .thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .thumb span { position: absolute; left: 10px; bottom: 9px; display: grid; width: 27px; height: 27px; place-items: center; border-radius: 50%; background: rgba(23,33,27,.82); color: white; font-size: 12px; font-weight: 800; }
+    .active .thumb { animation: thumb-in 520ms var(--ease) forwards; animation-delay: calc(var(--i) * 80ms + 260ms); }
+    .drop-summary { display: flex; align-items: center; justify-content: space-between; margin-top: 30px; padding: 28px 30px; border-radius: 24px; background: var(--paper); }
+    .drop-summary strong { display: block; font-size: 28px; }
+    .drop-summary span { display: block; margin-top: 7px; color: var(--muted); font-size: 18px; }
+    .primary-button { border: 0; border-radius: 999px; padding: 18px 28px; background: var(--ink); color: white; font-size: 18px; font-weight: 800; }
+
+    .readiness { padding: 34px; background: rgba(23,33,27,.95); color: white; }
+    .readiness .eyebrow { color: #afbbb2; font-size: 15px; }
+    .readiness h3 { margin-bottom: 36px; font-size: 38px; }
+    .checklist { display: grid; gap: 24px; }
+    .check { display: grid; grid-template-columns: 38px 1fr; align-items: start; gap: 15px; opacity: 0; transform: translateY(20px); }
+    .check-icon { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 50%; background: var(--moss-light); color: var(--ink); font-size: 19px; font-weight: 900; }
+    .check strong { display: block; margin-top: 2px; font-size: 21px; }
+    .check span { display: block; margin-top: 5px; color: #afbbb2; font-size: 16px; line-height: 1.35; }
+    .active .check { animation: thumb-in 520ms var(--ease) forwards; animation-delay: calc(var(--i) * 180ms + 900ms); }
+
+    /* Scene 4 */
+    .scene-inspect { grid-template-rows: auto 1fr; gap: 34px; }
+    .scene-inspect .heading-row { display: flex; align-items: end; justify-content: space-between; gap: 40px; }
+    .scene-inspect h2 { margin-bottom: 0; font-size: 76px; }
+    .result-shell { display: grid; grid-template-columns: 1.18fr .82fr; gap: 28px; min-height: 0; }
+    .compare-panel { display: grid; grid-template-rows: 1fr auto; padding: 22px; }
+    .compare-stage { position: relative; overflow: hidden; min-height: 0; border-radius: 24px; background: #18211c; }
+    .compare-stage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+    .compare-stage .reconstruction { clip-path: inset(0 0 0 50%); filter: saturate(.96) contrast(1.02); }
+    .compare-stage .line { position: absolute; z-index: 2; top: 0; bottom: 0; left: 50%; width: 3px; background: white; box-shadow: 0 0 0 1px rgba(23,33,27,.45); }
+    .compare-stage .line::after { content: "↔"; position: absolute; top: 50%; left: 50%; display: grid; width: 60px; height: 60px; place-items: center; transform: translate(-50%,-50%); border-radius: 50%; background: white; color: var(--ink); font-size: 26px; font-weight: 800; }
+    .compare-label { position: absolute; z-index: 3; top: 18px; border-radius: 999px; padding: 10px 14px; background: rgba(23,33,27,.78); color: white; font-size: 14px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .compare-label.left { left: 18px; }
+    .compare-label.right { right: 18px; }
+    .viewer-tabs { display: flex; gap: 10px; padding-top: 18px; }
+    .viewer-tab { border: 1px solid var(--line); border-radius: 999px; padding: 11px 17px; background: transparent; color: var(--muted); font-size: 15px; font-weight: 800; }
+    .viewer-tab.active-tab { background: var(--ink); color: white; }
+    .result-summary { display: grid; grid-template-rows: auto 1fr auto; gap: 20px; padding: 32px; }
+    .result-summary h3 { margin-bottom: 0; font-size: 35px; }
+    .result-cards { display: grid; gap: 13px; align-content: center; }
+    .result-card { display: grid; grid-template-columns: 58px 1fr; gap: 17px; align-items: center; padding: 20px; border-radius: 20px; background: var(--paper); opacity: 0; transform: translateX(32px); }
+    .result-card .icon { display: grid; width: 58px; height: 58px; place-items: center; border-radius: 18px; background: white; color: var(--moss); font-size: 27px; font-weight: 800; }
+    .result-card strong { display: block; font-size: 21px; }
+    .result-card span { display: block; margin-top: 5px; color: var(--muted); font-size: 16px; }
+    .active .result-card { animation: result-in 560ms var(--ease) forwards; animation-delay: calc(var(--i) * 170ms + 460ms); }
+
+    /* Scene 5 */
+    .scene-evidence { grid-template-rows: auto 1fr auto; gap: 36px; }
+    .scene-evidence .heading-row { display: flex; align-items: end; justify-content: space-between; }
+    .scene-evidence h2 { margin-bottom: 0; font-size: 78px; }
+    .evidence-grid { display: grid; grid-template-columns: .92fr 1.08fr; gap: 28px; min-height: 0; }
+    .reference-result, .broad-result { padding: 36px; }
+    .reference-result h3, .broad-result h3 { margin-bottom: 7px; font-size: 30px; }
+    .result-kicker { color: var(--muted); font-size: 17px; }
+    .storage-bars { display: grid; gap: 25px; margin-top: 38px; }
+    .bar-row { display: grid; grid-template-columns: 210px 1fr 105px; align-items: center; gap: 18px; }
+    .bar-label { font-size: 18px; font-weight: 780; }
+    .bar-track { height: 28px; overflow: hidden; border-radius: 999px; background: #e5e7e1; }
+    .bar-fill { width: 0; height: 100%; border-radius: inherit; background: var(--moss); }
+    .bar-fill.originals { background: #9ca79f; }
+    .bar-fill.baseline { background: #c99a5e; }
+    .bar-value { text-align: right; font-size: 19px; font-weight: 850; }
+    .active .bar-fill { animation: grow-bar 1.15s var(--ease) forwards; animation-delay: var(--delay); }
+    .reconstructed { display: flex; align-items: center; gap: 13px; margin-top: 36px; padding-top: 28px; border-top: 1px solid var(--line); color: var(--positive); font-size: 20px; font-weight: 800; }
+    .big-metric { margin-top: 36px; font-size: 75px; font-weight: 680; letter-spacing: -.055em; line-height: 1; }
+    .big-metric .arrow { color: var(--moss); padding: 0 11px; }
+    .dataset-count { margin-top: 22px; color: var(--ink-soft); font-size: 30px; font-weight: 650; }
+    .dataset-dots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 38px; }
+    .dataset-dot { position: relative; overflow: hidden; height: 145px; border-radius: 22px; background: var(--paper); }
+    .dataset-dot img { width: 100%; height: 100%; object-fit: cover; filter: saturate(.75); }
+    .dataset-dot span { position: absolute; left: 13px; right: 13px; bottom: 12px; border-radius: 11px; padding: 8px 10px; background: rgba(23,33,27,.8); color: white; font-size: 12px; font-weight: 800; text-align: center; }
+    .qualifier { display: flex; align-items: center; gap: 11px; color: var(--muted); font-size: 18px; }
+
+    /* Scene 6 */
+    .scene-codex { align-items: center; }
+    .codex-layout { display: grid; grid-template-columns: .93fr 1.07fr; align-items: center; gap: 76px; }
+    .scene-codex h2 { font-size: 86px; }
+    .cut-card { position: relative; overflow: hidden; padding: 52px; background: rgba(23,33,27,.97); color: white; }
+    .cut-card::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 85% 18%, rgba(217,234,220,.16), transparent 35%); }
+    .cut-card > * { position: relative; z-index: 1; }
+    .cut-card .eyebrow { color: #afbbb2; }
+    .cut-card h3 { margin-bottom: 18px; font-size: 45px; }
+    .cut-card p { color: #c7d0c9; font-size: 23px; line-height: 1.45; }
+    .cut-details { display: grid; gap: 12px; margin-top: 34px; }
+    .cut-detail { display: flex; align-items: center; gap: 14px; padding: 15px 18px; border: 1px solid rgba(255,255,255,.13); border-radius: 16px; color: white; font-size: 17px; }
+    .cut-detail span:first-child { color: #a9d4b3; }
+    .build-loop { display: grid; gap: 15px; margin-top: 42px; }
+    .loop-item { display: flex; align-items: center; gap: 16px; opacity: 0; transform: translateX(-30px); }
+    .loop-num { display: grid; width: 48px; height: 48px; place-items: center; border-radius: 50%; background: var(--moss-light); color: var(--ink); font-size: 16px; font-weight: 900; }
+    .loop-item strong { font-size: 29px; }
+    .active .loop-item { animation: loop-in 520ms var(--ease) forwards; animation-delay: calc(var(--i) * 150ms + 370ms); }
+    .support-labels { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 38px; }
+    .support-labels span { border: 1px solid var(--line); border-radius: 999px; padding: 11px 15px; color: var(--muted); font-size: 15px; font-weight: 800; }
+
+    /* Scene 7 */
+    .scene-local { align-items: center; }
+    .scene-local h2 { text-align: center; font-size: 86px; }
+    .local-diagram { display: grid; grid-template-columns: 1fr 160px 1.14fr 160px 1fr; align-items: center; max-width: 1500px; margin: 80px auto 0; }
+    .diagram-node { display: grid; min-height: 300px; place-items: center; padding: 34px; text-align: center; }
+    .diagram-node h3 { margin: 24px 0 10px; font-size: 31px; }
+    .diagram-node p { margin: 0; color: var(--muted); font-size: 18px; line-height: 1.4; }
+    .photo-icon { position: relative; width: 152px; height: 112px; }
+    .photo-icon span { position: absolute; inset: 0; border: 7px solid white; border-radius: 15px; background: linear-gradient(145deg, #769079 0 42%, #d7b77d 43% 55%, #6e856e 56%); box-shadow: 0 17px 40px rgba(23,33,27,.16); }
+    .photo-icon span:nth-child(1) { transform: translate(-18px, -12px) rotate(-7deg); }
+    .photo-icon span:nth-child(2) { transform: translate(18px, -6px) rotate(7deg); }
+    .device-icon { display: grid; width: 132px; height: 132px; place-items: center; border: 5px solid var(--moss); border-radius: 35px; background: var(--moss-light); }
+    .device-icon::before { content: "PF"; color: var(--ink); font-size: 39px; font-weight: 850; letter-spacing: -.08em; }
+    .archive-icon { position: relative; width: 148px; height: 112px; border-radius: 20px; background: var(--ink); }
+    .archive-icon::before, .archive-icon::after { content: ""; position: absolute; border-radius: 8px; background: var(--moss-light); }
+    .archive-icon::before { left: 25px; top: 24px; width: 98px; height: 18px; }
+    .archive-icon::after { left: 25px; top: 56px; width: 64px; height: 18px; opacity: .7; }
+    .diagram-arrow { position: relative; height: 3px; margin: 0 24px; background: rgba(73,97,81,.35); }
+    .diagram-arrow::after { content: ""; position: absolute; right: 0; top: 50%; width: 15px; height: 15px; border-top: 3px solid var(--moss); border-right: 3px solid var(--moss); transform: translateY(-50%) rotate(45deg); }
+    .local-values { display: flex; justify-content: center; gap: 18px; margin-top: 55px; }
+    .local-value { padding: 16px 23px; border-radius: 999px; background: white; box-shadow: 0 10px 30px rgba(23,33,27,.07); font-size: 21px; font-weight: 800; opacity: 0; transform: translateY(24px); }
+    .active .local-value { animation: thumb-in 500ms var(--ease) forwards; animation-delay: calc(var(--i) * 170ms + 900ms); }
+
+    /* Scene 8 */
+    .scene-vision { grid-template-rows: auto 1fr; gap: 28px; padding-top: 74px; }
+    .vision-label { display: inline-flex; align-items: center; gap: 10px; width: fit-content; border-radius: 999px; padding: 12px 18px; background: var(--warm-bg); color: #76570d; font-size: 15px; font-weight: 850; letter-spacing: .11em; text-transform: uppercase; }
+    .gallery-prototype { position: relative; display: grid; grid-template-columns: 1.1fr .9fr; min-height: 0; overflow: hidden; }
+    .gallery-side { padding: 31px; border-right: 1px solid var(--line); }
+    .gallery-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .gallery-header h3 { margin: 0; font-size: 30px; }
+    .gallery-header .date { color: var(--muted); font-size: 15px; }
+    .gallery-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .gallery-item { position: relative; overflow: hidden; aspect-ratio: 1; border-radius: 12px; background: #e5e8e2; transition: transform 700ms var(--ease), opacity 700ms ease, box-shadow 700ms ease; }
+    .gallery-item img { width: 100%; height: 100%; object-fit: cover; }
+    .gallery-item.related::after { content: "Related set"; position: absolute; left: 8px; bottom: 8px; border-radius: 999px; padding: 6px 8px; background: rgba(23,33,27,.8); color: white; font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+    .gallery-prototype.optimized .gallery-item { transform: scale(.97); }
+    .gallery-prototype.optimized .gallery-item.related { box-shadow: inset 0 0 0 5px var(--moss-light), 0 0 0 2px var(--moss); }
+    .optimize-side { display: flex; flex-direction: column; justify-content: center; padding: 62px; }
+    .optimize-side .eyebrow { margin-bottom: 18px; }
+    .optimize-side h2 { margin-bottom: 24px; font-size: 64px; }
+    .optimize-side .found { margin: 6px 0 27px; color: var(--ink-soft); font-size: 27px; font-weight: 680; }
+    .optimize-side .small-copy { max-width: 560px; font-size: 21px; }
+    .optimize-button { width: fit-content; margin-top: 30px; border: 0; border-radius: 999px; padding: 19px 30px; background: var(--ink); color: white; font-size: 19px; font-weight: 850; cursor: pointer; transition: transform 160ms ease, background 300ms ease; }
+    .optimize-button:hover { transform: translateY(-2px); }
+    .optimize-button:focus-visible { outline: 4px solid rgba(73,97,81,.35); outline-offset: 4px; }
+    .optimize-result { display: none; margin-top: 27px; padding: 20px 22px; border-radius: 20px; background: var(--positive-bg); color: var(--positive); }
+    .optimize-result strong { display: block; font-size: 22px; }
+    .optimize-result span { display: block; margin-top: 4px; font-size: 16px; }
+    .gallery-prototype.optimized .optimize-result { display: block; animation: result-in 600ms var(--ease) both; }
+    .gallery-prototype.optimized .optimize-button { display: none; }
+    .final-lockup {
+      position: absolute;
+      inset: 0;
+      z-index: 8;
+      display: grid;
+      place-items: center;
+      padding: 80px;
+      background: var(--ink);
+      color: white;
+      text-align: center;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .final-lockup .brand { margin-bottom: 30px; font-size: 118px; font-weight: 680; letter-spacing: -.065em; line-height: 1; }
+    .final-lockup p { max-width: 1250px; margin: 0; color: #d9eadc; font-size: 48px; font-weight: 560; letter-spacing: -.035em; line-height: 1.2; }
+    .gallery-prototype.optimized .final-lockup { animation: final-reveal 900ms var(--ease) 3.4s forwards; }
+
+    /* Presentation chrome */
+    .scene-chrome {
+      position: absolute;
+      z-index: 20;
+      left: 60px;
+      right: 60px;
+      bottom: 42px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 24px;
+      color: var(--muted);
+      transition: opacity 220ms ease;
+    }
+
+    .scene-counter { min-width: 104px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 16px; font-weight: 800; letter-spacing: .14em; }
+    .progress { height: 3px; overflow: hidden; border-radius: 99px; background: rgba(23,33,27,.13); }
+    .progress span { display: block; width: 12.5%; height: 100%; border-radius: inherit; background: var(--moss); transition: width 500ms var(--ease); }
+    .scene-title { min-width: 250px; text-align: right; font-size: 15px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+
+    .controls {
+      position: fixed;
+      z-index: 50;
+      right: 24px;
+      bottom: 22px;
+      display: flex;
+      gap: 8px;
+      transition: opacity 220ms ease;
+    }
+
+    .control-button {
+      display: grid;
+      min-width: 44px;
+      height: 44px;
+      place-items: center;
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 999px;
+      background: rgba(23,33,27,.88);
+      color: white;
+      cursor: pointer;
+      box-shadow: 0 10px 25px rgba(0,0,0,.2);
+    }
+
+    .control-button.wide { padding: 0 15px; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .control-button:hover { background: var(--moss); }
+
+    .presenter-panel {
+      position: fixed;
+      z-index: 60;
+      top: 18px;
+      right: 18px;
+      width: min(520px, calc(100vw - 36px));
+      max-height: calc(100vh - 92px);
+      overflow: auto;
+      padding: 26px;
+      border: 1px solid rgba(255,255,255,.17);
+      border-radius: 23px;
+      background: rgba(14,19,15,.96);
+      color: white;
+      box-shadow: 0 25px 90px rgba(0,0,0,.42);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-15px);
+      transition: opacity 220ms ease, transform 280ms var(--ease), visibility 0s linear 280ms;
+    }
+
+    .presenter-panel.open { opacity: 1; visibility: visible; transform: translateY(0); transition-delay: 0s; }
+    .presenter-panel .eyebrow { color: #afbbb2; font-size: 13px; }
+    .presenter-panel h3 { margin-bottom: 8px; font-size: 27px; }
+    .presenter-time { margin-bottom: 20px; color: #afbbb2; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+    .presenter-copy { margin: 0; color: #e6ebe7; font-size: 18px; line-height: 1.55; }
+    .shortcuts { margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,.13); color: #afbbb2; font-size: 12px; line-height: 1.65; }
+
+    .recording .controls,
+    .recording .scene-chrome,
+    .recording .presenter-panel { opacity: 0 !important; visibility: hidden !important; pointer-events: none; }
+
+    .recording-badge {
+      position: fixed;
+      z-index: 70;
+      left: 20px;
+      bottom: 20px;
+      display: none;
+      border-radius: 999px;
+      padding: 8px 11px;
+      background: rgba(23,33,27,.72);
+      color: rgba(255,255,255,.8);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .recording .recording-badge { display: block; }
+
+    @keyframes card-arrive {
+      to { opacity: 1; transform: translate3d(0,0,0) rotate(var(--r)); }
+    }
+    @keyframes card-arrive-hero {
+      0% { opacity: 0; transform: translate3d(0,160px,80px) rotate(-1deg) scale(.9); }
+      70% { opacity: 1; transform: translate3d(0,-10px,80px) rotate(-1deg) scale(1.025); }
+      100% { opacity: 1; transform: translate3d(0,0,80px) rotate(-1deg) scale(1); }
+    }
+    @keyframes repeat-pulse {
+      0%, 100% { opacity: .35; transform: scale(.96); }
+      45% { opacity: 1; transform: scale(1.03); }
+    }
+    @keyframes reference-settle {
+      0% { opacity: 0; transform: translateX(220px) scale(.82); }
+      70% { opacity: 1; transform: translateX(-12px) scale(1.015); }
+      100% { opacity: 1; transform: translateX(0) scale(1); }
+    }
+    @keyframes layer-arrive { to { opacity: 1; transform: translate(0,0) scale(1); } }
+    @keyframes thumb-in { to { opacity: 1; transform: translateY(0); } }
+    @keyframes result-in { to { opacity: 1; transform: translateX(0); } }
+    @keyframes grow-bar { to { width: var(--width); } }
+    @keyframes loop-in { to { opacity: 1; transform: translateX(0); } }
+    @keyframes final-reveal { to { opacity: 1; visibility: visible; } }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" id="app">
+    <div class="viewport" id="viewport" aria-live="polite">
+      <div class="slides">
+        <section class="slide scene-problem active" data-title="The problem" data-time="0:00–0:17" data-scene-label="Scene 01 · The problem">
+          <div class="copy">
+            <p class="eyebrow">Your photo library</p>
+            <h1>Stores the same scene again and again.</h1>
+            <p class="lead">Bursts preserve the moment—and repeat most of the pixels.</p>
+          </div>
+          <div class="burst-gallery" aria-label="Seven nearly identical burst photos">
+            <figure class="burst-card" style="--i:0"><img src="data/demo/hdrplus-static/frame-000.jpg" alt="Burst photo 1"></figure>
+            <figure class="burst-card" style="--i:1"><img src="data/demo/hdrplus-static/frame-001.jpg" alt="Burst photo 2"></figure>
+            <figure class="burst-card" style="--i:2"><img src="data/demo/hdrplus-static/frame-002.jpg" alt="Burst photo 3"></figure>
+            <figure class="burst-card" style="--i:3"><img src="data/demo/hdrplus-static/frame-003.jpg" alt="Burst photo 4"></figure>
+            <figure class="burst-card" style="--i:4"><img src="data/demo/hdrplus-static/frame-004.jpg" alt="Burst photo 5"></figure>
+            <figure class="burst-card" style="--i:5"><img src="data/demo/hdrplus-static/frame-005.jpg" alt="Burst photo 6"></figure>
+            <figure class="burst-card" style="--i:6"><img src="data/demo/hdrplus-static/frame-006.jpg" alt="Burst photo 7"></figure>
+            <div class="repeat-window" aria-hidden="true"></div>
+          </div>
+          <script type="application/json" class="notes">{"narration":"Our photo libraries are filled with bursts where most of every image is repeated. Existing tools either compress each photo independently or ask us to delete the extras. PhotoFold offers a third option: keep every shot, but store the shared scene only once."}</script>
+        </section>
+
+        <section class="slide scene-idea" data-title="The product idea" data-time="0:17–0:32" data-scene-label="Scene 02 · The product idea">
+          <div class="layout">
+            <div>
+              <p class="eyebrow">Meet PhotoFold</p>
+              <h2>Keep every shot.<span>Store the scene once.</span></h2>
+              <p class="lead">And store only what changes.</p>
+            </div>
+            <div class="fold-visual" aria-label="A reference photo and three change layers">
+              <div class="fold-reference"><img src="data/demo/hdrplus-static/frame-003.jpg" alt="Shared reference scene"></div>
+              <span class="reference-label">Shared scene</span>
+              <div class="change-layer one" style="--i:1"><span>Change layer 01</span></div>
+              <div class="change-layer two" style="--i:2"><span>Change layer 02</span></div>
+              <div class="change-layer three" style="--i:3"><span>Change layer 03</span></div>
+            </div>
+          </div>
+          <script type="application/json" class="notes">{"narration":"PhotoFold turns a related set of photos into one compact, reversible collection. It preserves every frame while avoiding the unnecessary duplication hidden across similar images."}</script>
+        </section>
+
+        <section class="slide scene-select" data-title="Select and check" data-time="0:32–0:52" data-scene-label="Scene 03 · Live product">
+          <div class="topline">
+            <div>
+              <p class="eyebrow">Live PhotoFold interface</p>
+              <h2>Select a moment.</h2>
+            </div>
+            <span class="pill"><span class="dot"></span>Photos stay on this device</span>
+          </div>
+          <div class="product-shell">
+            <div class="panel upload-panel">
+              <div class="product-heading">
+                <div><p class="eyebrow">Step 1</p><h3>7 related photos selected</h3></div>
+                <span class="mono muted">4.41 MB total</span>
+              </div>
+              <div class="thumb-strip">
+                <div class="thumb" style="--i:0"><img src="data/demo/hdrplus-static/frame-000.jpg" alt="Selected photo 1"><span>1</span></div>
+                <div class="thumb" style="--i:1"><img src="data/demo/hdrplus-static/frame-001.jpg" alt="Selected photo 2"><span>2</span></div>
+                <div class="thumb" style="--i:2"><img src="data/demo/hdrplus-static/frame-002.jpg" alt="Selected photo 3"><span>3</span></div>
+                <div class="thumb" style="--i:3"><img src="data/demo/hdrplus-static/frame-003.jpg" alt="Selected photo 4"><span>4</span></div>
+                <div class="thumb" style="--i:4"><img src="data/demo/hdrplus-static/frame-004.jpg" alt="Selected photo 5"><span>5</span></div>
+                <div class="thumb" style="--i:5"><img src="data/demo/hdrplus-static/frame-005.jpg" alt="Selected photo 6"><span>6</span></div>
+                <div class="thumb" style="--i:6"><img src="data/demo/hdrplus-static/frame-006.jpg" alt="Selected photo 7"><span>7</span></div>
+              </div>
+              <div class="drop-summary">
+                <div><strong>Ready to create</strong><span>All photos can be processed together.</span></div>
+                <button class="primary-button" type="button">Create PhotoFold collection</button>
+              </div>
+            </div>
+            <aside class="panel readiness">
+              <p class="eyebrow">Readiness check</p>
+              <h3>Everything looks good.</h3>
+              <div class="checklist">
+                <div class="check" style="--i:0"><span class="check-icon">✓</span><div><strong>7 photos detected</strong><span>A complete burst from the same moment.</span></div></div>
+                <div class="check" style="--i:1"><span class="check-icon">✓</span><div><strong>Dimensions match</strong><span>Each frame is 1600 × 1200.</span></div></div>
+                <div class="check" style="--i:2"><span class="check-icon">✓</span><div><strong>Private by design</strong><span>Processing stays on this computer.</span></div></div>
+              </div>
+            </aside>
+          </div>
+          <script type="application/json" class="notes">{"narration":"I begin by selecting a burst. PhotoFold checks whether the photos can be processed together and explains any issues before it starts. Everything runs locally, so the photos do not need to be uploaded to an external service."}</script>
+        </section>
+
+        <section class="slide scene-inspect" data-title="Create and inspect" data-time="0:52–1:19" data-scene-label="Scene 04 · Live product">
+          <div class="heading-row">
+            <div><p class="eyebrow">PhotoFold collection complete</p><h2>Every frame, recoverable.</h2></div>
+            <span class="pill"><span class="dot"></span>7 of 7 reconstructed</span>
+          </div>
+          <div class="result-shell">
+            <div class="panel compare-panel">
+              <div class="compare-stage">
+                <img src="data/demo/hdrplus-static/frame-003.jpg" alt="Original reference photo">
+                <img class="reconstruction" src="data/demo/hdrplus-static/frame-003.jpg" alt="Reconstructed reference photo">
+                <span class="compare-label left">Original</span><span class="compare-label right">Reconstruction</span><span class="line"></span>
+              </div>
+              <div class="viewer-tabs"><button class="viewer-tab active-tab" type="button">Compare</button><button class="viewer-tab" type="button">Original</button><button class="viewer-tab" type="button">Reconstruction</button><button class="viewer-tab" type="button">Change map</button></div>
+            </div>
+            <aside class="panel result-summary">
+              <div><p class="eyebrow">What PhotoFold stored</p><h3>One shared scene. Small differences.</h3></div>
+              <div class="result-cards">
+                <div class="result-card" style="--i:0"><span class="icon">▣</span><div><strong>Shared scene</strong><span>Stored once as the reference.</span></div></div>
+                <div class="result-card" style="--i:1"><span class="icon">±</span><div><strong>Changes between frames</strong><span>Preserved as compact layers.</span></div></div>
+                <div class="result-card" style="--i:2"><span class="icon">✓</span><div><strong>Every frame recoverable</strong><span>Verified against all accepted inputs.</span></div></div>
+              </div>
+              <p class="small-copy">Use the live product for the processing click, jump cut, comparison slider, and change map.</p>
+            </aside>
+          </div>
+          <script type="application/json" class="notes">{"narration":"PhotoFold selects a reference image, aligns the remaining frames, and stores the visual differences instead of repeatedly storing the entire scene. Afterward, I can recover every photo, compare it with the source, and inspect a change map showing which parts were shared and which parts needed to be preserved separately."}</script>
+        </section>
+
+        <section class="slide scene-evidence" data-title="Measured evidence" data-time="1:19–1:44" data-scene-label="Scene 05 · Measured evidence">
+          <div class="heading-row">
+            <div><p class="eyebrow">Measured, not estimated</p><h2>The idea holds up.</h2></div>
+            <span class="pill"><span class="dot"></span>Every accepted frame verified</span>
+          </div>
+          <div class="evidence-grid">
+            <article class="panel reference-result">
+              <h3>Reference burst</h3><p class="result-kicker">7 real mobile-camera frames</p>
+              <div class="storage-bars">
+                <div class="bar-row"><span class="bar-label">Originals</span><span class="bar-track"><span class="bar-fill originals" style="--width:100%;--delay:180ms"></span></span><span class="bar-value">4.41 MB</span></div>
+                <div class="bar-row"><span class="bar-label">PhotoFold</span><span class="bar-track"><span class="bar-fill" style="--width:15.4%;--delay:380ms"></span></span><span class="bar-value">678 KB</span></div>
+                <div class="bar-row"><span class="bar-label">Matched WebP</span><span class="bar-track"><span class="bar-fill baseline" style="--width:16.4%;--delay:580ms"></span></span><span class="bar-value">725 KB</span></div>
+              </div>
+              <div class="reconstructed"><span class="check-icon">✓</span>All 7 frames reconstructed</div>
+            </article>
+            <article class="panel broad-result">
+              <h3>Across three real bursts</h3><p class="result-kicker">Static, motion, and changing-light conditions</p>
+              <div class="big-metric">98.3 MB <span class="arrow">→</span> 26.3 MB</div>
+              <div class="dataset-count">42 photos · every accepted frame reconstructed</div>
+              <div class="dataset-dots">
+                <div class="dataset-dot"><img src="data/demo/hdrplus-static/frame-000.jpg" alt="Static scene dataset"><span>Static handheld</span></div>
+                <div class="dataset-dot"><img src="data/demo/hdrplus-static/frame-002.jpg" alt="Motion dataset"><span>Moving subject</span></div>
+                <div class="dataset-dot"><img src="data/demo/hdrplus-static/frame-006.jpg" alt="Changing light dataset"><span>Motion or lighting</span></div>
+              </div>
+            </article>
+          </div>
+          <p class="qualifier"><span class="dot"></span>Results vary with motion and lighting.</p>
+          <script type="application/json" class="notes">{"narration":"For this reference burst, 4.4 megabytes of source photos became a 678-kilobyte PhotoFold collection. It was also smaller than encoding every image independently as WebP at matched or better measured quality. Across three real bursts and 42 photos, PhotoFold reduced 98.3 megabytes to 26.3 megabytes, while reconstructing every accepted frame. Performance varied with motion and lighting, which became an important part of our development."}</script>
+        </section>
+
+        <section class="slide scene-codex" data-title="Codex and GPT-5.6" data-time="1:44–2:19" data-scene-label="Scene 06 · Codex + GPT-5.6">
+          <div class="codex-layout">
+            <div>
+              <p class="eyebrow">Engineering loop</p>
+              <h2>Build → Test → Measure → Learn → Improve</h2>
+              <div class="build-loop">
+                <div class="loop-item" style="--i:0"><span class="loop-num">01</span><strong>Build the benchmark</strong></div>
+                <div class="loop-item" style="--i:1"><span class="loop-num">02</span><strong>Verify reconstruction</strong></div>
+                <div class="loop-item" style="--i:2"><span class="loop-num">03</span><strong>Learn from real failures</strong></div>
+              </div>
+              <div class="support-labels"><span>Quality-matched baseline</span><span>Complete byte accounting</span><span>Reconstruction verification</span><span>Real-world failure analysis</span></div>
+            </div>
+            <aside class="panel cut-card">
+              <p class="eyebrow">Presenter cutaway</p>
+              <h3>Cut to the real Codex recording.</h3>
+              <p>Do not recreate Codex in this presentation. Show the actual “Plan Phase 1B implementation” task and return here for the summary.</p>
+              <div class="cut-details">
+                <div class="cut-detail"><span>01</span><span>Task title and benchmark prompt</span></div>
+                <div class="cut-detail"><span>02</span><span>Relevant code change or diff</span></div>
+                <div class="cut-detail"><span>03</span><span>Test and verification result</span></div>
+                <div class="cut-detail"><span>04</span><span>Generated benchmark report</span></div>
+              </div>
+            </aside>
+          </div>
+          <script type="application/json" class="notes">{"narration":"We used GPT-5.6 in Codex to test whether PhotoFold’s central idea actually held up—not simply to generate code. In our Phase 1B task, Codex helped design and implement a quality-matched WebP benchmark across three real photo bursts. It verified every reconstructed frame, accounted for every archive byte, generated visual reports, and surfaced where motion and changing light weakened the approach. Those findings directly changed the product, leading us to add safer fallback behavior and improve support for photos with different resolutions."}</script>
+        </section>
+
+        <section class="slide scene-local" data-title="Local by design" data-time="2:19–2:34" data-scene-label="Scene 07 · Local runtime">
+          <div>
+            <p class="eyebrow" style="text-align:center">Predictable · Private · Verifiable</p>
+            <h2>The photos never leave your device.</h2>
+            <div class="local-diagram" aria-label="Photos enter local PhotoFold and produce a reconstructable collection on the same device">
+              <div class="diagram-node panel"><div class="photo-icon"><span></span><span></span><span></span></div><h3>Related photos</h3><p>Selected from the local library</p></div>
+              <div class="diagram-arrow" aria-hidden="true"></div>
+              <div class="diagram-node panel"><div class="device-icon"></div><h3>PhotoFold</h3><p>Deterministic processing on this device</p></div>
+              <div class="diagram-arrow" aria-hidden="true"></div>
+              <div class="diagram-node panel"><div class="archive-icon"></div><h3>Compact collection</h3><p>Every accepted frame remains recoverable</p></div>
+            </div>
+            <div class="local-values"><span class="local-value" style="--i:0">Deterministic</span><span class="local-value" style="--i:1">Reversible</span><span class="local-value" style="--i:2">Local by design</span></div>
+          </div>
+          <script type="application/json" class="notes">{"narration":"The final processor is deterministic and local by design. GPT-5.6 shaped the engineering and evaluation, while reconstruction itself never depends on a model response. That makes the result predictable, private, and independently verifiable."}</script>
+        </section>
+
+        <section class="slide scene-vision" data-title="Product vision" data-time="2:34–2:58" data-scene-label="Scene 08 · Product vision">
+          <span class="vision-label"><span class="dot"></span>Product vision — gallery integration prototype</span>
+          <div class="panel gallery-prototype" id="galleryPrototype">
+            <div class="gallery-side">
+              <div class="gallery-header"><h3>Your photo library</h3><span class="date">This week · 24 photos</span></div>
+              <div class="gallery-grid" aria-label="Fictional photo gallery prototype">
+                <div class="gallery-item related"><img src="data/demo/hdrplus-static/frame-000.jpg" alt="Photo 1"></div>
+                <div class="gallery-item related"><img src="data/demo/hdrplus-static/frame-001.jpg" alt="Photo 2"></div>
+                <div class="gallery-item related"><img src="data/demo/hdrplus-static/frame-002.jpg" alt="Photo 3"></div>
+                <div class="gallery-item related"><img src="data/demo/hdrplus-static/frame-003.jpg" alt="Photo 4"></div>
+                <div class="gallery-item related"><img src="data/demo/hdrplus-static/frame-004.jpg" alt="Photo 5"></div>
+                <div class="gallery-item related"><img src="data/demo/hdrplus-static/frame-005.jpg" alt="Photo 6"></div>
+                <div class="gallery-item related"><img src="data/demo/hdrplus-static/frame-006.jpg" alt="Photo 7"></div>
+                <div class="gallery-item"><img src="data/demo/hdrplus-static/frame-003.jpg" alt="Photo 8"></div>
+                <div class="gallery-item"><img src="data/demo/hdrplus-static/frame-005.jpg" alt="Photo 9"></div>
+                <div class="gallery-item"><img src="data/demo/hdrplus-static/frame-001.jpg" alt="Photo 10"></div>
+                <div class="gallery-item"><img src="data/demo/hdrplus-static/frame-004.jpg" alt="Photo 11"></div>
+                <div class="gallery-item"><img src="data/demo/hdrplus-static/frame-006.jpg" alt="Photo 12"></div>
+              </div>
+            </div>
+            <div class="optimize-side">
+              <p class="eyebrow">A possible future</p>
+              <h2>Optimize Photo Storage</h2>
+              <p class="found">PhotoFold found 14 related photo sets.</p>
+              <p class="small-copy">Keep every photo while reducing repeated visual data.</p>
+              <button class="optimize-button" id="optimizeButton" type="button">Optimize Storage</button>
+              <div class="optimize-result" role="status"><strong>Storage optimized</strong><span>Every photo remains available</span></div>
+            </div>
+            <div class="final-lockup" aria-hidden="true">
+              <div><div class="brand">PhotoFold</div><p>Keep every shot. Store the scene once—and only what changes.</p></div>
+            </div>
+          </div>
+          <script type="application/json" class="notes">{"narration":"Today, PhotoFold is a local prototype. Long term, we imagine this technology built directly into photo libraries such as Apple Photos and Google Photos. When someone enables optimized storage, the gallery could identify related bursts and store their shared visual information only once. Every photo would remain available, while PhotoFold quietly reduces duplication underneath. Keep every shot. Store the scene once—and only what changes."}</script>
+        </section>
+      </div>
+
+      <footer class="scene-chrome" aria-hidden="true">
+        <span class="scene-counter" id="sceneCounter">01 / 08</span>
+        <span class="progress"><span id="progressBar"></span></span>
+        <span class="scene-title" id="sceneTitle">The problem</span>
+      </footer>
+    </div>
+
+    <aside class="presenter-panel" id="presenterPanel" aria-hidden="true">
+      <p class="eyebrow">Presenter notes</p>
+      <h3 id="notesTitle">The problem</h3>
+      <div class="presenter-time" id="notesTime">0:00–0:17</div>
+      <p class="presenter-copy" id="notesCopy"></p>
+      <div class="shortcuts">← / → navigate · R restart motion · N notes · M recording mode · F fullscreen · 1–8 jump to scene</div>
+    </aside>
+
+    <nav class="controls" aria-label="Presentation controls">
+      <button class="control-button" id="prevButton" type="button" aria-label="Previous scene">←</button>
+      <button class="control-button" id="nextButton" type="button" aria-label="Next scene">→</button>
+      <button class="control-button wide" id="restartButton" type="button" aria-label="Restart scene animations">Restart</button>
+      <button class="control-button wide" id="notesButton" type="button" aria-label="Toggle presenter notes">Notes</button>
+      <button class="control-button wide" id="recordButton" type="button" aria-label="Toggle recording mode">Record</button>
+      <button class="control-button wide" id="fullscreenButton" type="button" aria-label="Toggle fullscreen">Full</button>
+    </nav>
+    <div class="recording-badge">M to exit recording mode</div>
+  </main>
+
+  <script>
+    (() => {
+      const app = document.getElementById('app');
+      const viewport = document.getElementById('viewport');
+      const slides = Array.from(document.querySelectorAll('.slide'));
+      const counter = document.getElementById('sceneCounter');
+      const title = document.getElementById('sceneTitle');
+      const progress = document.getElementById('progressBar');
+      const notesPanel = document.getElementById('presenterPanel');
+      const notesTitle = document.getElementById('notesTitle');
+      const notesTime = document.getElementById('notesTime');
+      const notesCopy = document.getElementById('notesCopy');
+      const gallery = document.getElementById('galleryPrototype');
+      let index = 0;
+      let notesOpen = false;
+
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+      function scaleViewport() {
+        const scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+        viewport.style.transform = `translate(-50%, -50%) scale(${scale})`;
+      }
+
+      function narrationFor(slide) {
+        try { return JSON.parse(slide.querySelector('.notes').textContent).narration; }
+        catch (_) { return ''; }
+      }
+
+      function updateNotes(slide) {
+        notesTitle.textContent = slide.dataset.title;
+        notesTime.textContent = slide.dataset.time;
+        notesCopy.textContent = narrationFor(slide);
+      }
+
+      function restartAnimations() {
+        const slide = slides[index];
+        slide.classList.remove('active');
+        void slide.offsetWidth;
+        slide.classList.add('active');
+        if (slide.classList.contains('scene-vision')) gallery.classList.remove('optimized');
+      }
+
+      function showScene(nextIndex, restart = false) {
+        const target = clamp(nextIndex, 0, slides.length - 1);
+        if (target === index && restart) { restartAnimations(); return; }
+        slides.forEach((slide, slideIndex) => {
+          slide.classList.toggle('was-active', slideIndex < target);
+          slide.classList.toggle('active', slideIndex === target);
+        });
+        index = target;
+        const slide = slides[index];
+        counter.textContent = `${String(index + 1).padStart(2, '0')} / ${String(slides.length).padStart(2, '0')}`;
+        title.textContent = slide.dataset.title;
+        progress.style.width = `${((index + 1) / slides.length) * 100}%`;
+        updateNotes(slide);
+        if (!slide.classList.contains('scene-vision')) gallery.classList.remove('optimized');
+        document.title = `PhotoFold — ${slide.dataset.title}`;
+      }
+
+      function toggleNotes() {
+        notesOpen = !notesOpen;
+        notesPanel.classList.toggle('open', notesOpen);
+        notesPanel.setAttribute('aria-hidden', String(!notesOpen));
+      }
+
+      function toggleRecording() {
+        app.classList.toggle('recording');
+        if (app.classList.contains('recording')) {
+          notesOpen = false;
+          notesPanel.classList.remove('open');
+          notesPanel.setAttribute('aria-hidden', 'true');
+        }
+      }
+
+      async function toggleFullscreen() {
+        try {
+          if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+          else await document.exitFullscreen();
+        } catch (_) {}
+      }
+
+      document.getElementById('prevButton').addEventListener('click', () => showScene(index - 1));
+      document.getElementById('nextButton').addEventListener('click', () => showScene(index + 1));
+      document.getElementById('restartButton').addEventListener('click', restartAnimations);
+      document.getElementById('notesButton').addEventListener('click', toggleNotes);
+      document.getElementById('recordButton').addEventListener('click', toggleRecording);
+      document.getElementById('fullscreenButton').addEventListener('click', toggleFullscreen);
+      document.getElementById('optimizeButton').addEventListener('click', () => gallery.classList.add('optimized'));
+
+      window.addEventListener('resize', scaleViewport);
+      window.addEventListener('keydown', (event) => {
+        if (event.target instanceof HTMLButtonElement && (event.key === 'Enter' || event.key === ' ')) return;
+        if (event.key === 'ArrowRight' || event.key === 'PageDown') { event.preventDefault(); showScene(index + 1); }
+        else if (event.key === 'ArrowLeft' || event.key === 'PageUp') { event.preventDefault(); showScene(index - 1); }
+        else if (event.key === 'Home') { event.preventDefault(); showScene(0); }
+        else if (event.key === 'End') { event.preventDefault(); showScene(slides.length - 1); }
+        else if (event.key.toLowerCase() === 'r') { event.preventDefault(); restartAnimations(); }
+        else if (event.key.toLowerCase() === 'n') { event.preventDefault(); toggleNotes(); }
+        else if (event.key.toLowerCase() === 'm') { event.preventDefault(); toggleRecording(); }
+        else if (event.key.toLowerCase() === 'f') { event.preventDefault(); toggleFullscreen(); }
+        else if (/^[1-8]$/.test(event.key)) { event.preventDefault(); showScene(Number(event.key) - 1); }
+      });
+
+      scaleViewport();
+      showScene(0, true);
+    })();
+  </script>
+</body>
+</html>
